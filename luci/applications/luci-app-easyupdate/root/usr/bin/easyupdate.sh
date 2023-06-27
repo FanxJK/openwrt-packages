@@ -90,7 +90,7 @@ function checkSha() {
 	if [[ -z "$file" ]]; then
 		for filename in $(ls /tmp)
 		do
-			if [[ "${filename#*.}" = "img.gz" && "${filename:0:7}" = "openwrt" ]]; then
+			if [[ "${filename#*.}" = "img.gz" && "${filename:0:11}" = "immortalwrt" ]]; then
 				file=$filename
 			fi
 		done
@@ -106,8 +106,8 @@ function updateCloud() {
 	writeLog 'Get the cloud firmware version(获取云端固件版本)'
 	cFirVer=$(getCloudVer)
 	writeLog "Cloud firmware version(云端固件版本):$cFirVer"
-	lFirVer=$(date -d "${lFirVer:0:4}-${lFirVer:4:2}-${lFirVer:6:2} ${lFirVer:9:2}:${lFirVer:11:2}:${lFirVer:13:2}" +%s)
-	cFirVer=$(date -d "${cFirVer:0:4}-${cFirVer:4:2}-${cFirVer:6:2} ${cFirVer:9:2}:${cFirVer:11:2}:${cFirVer:13:2}" +%s)
+	lFirVer=$(date -d "$(echo $lFirVer | cut -d'-' -f2 | sed 's/\./-/g')" +%s)
+	cFirVer=$(date -d "$(echo $cFirVer | cut -d'-' -f2 | sed 's/\./-/g')" +%s)
 	if [ $cFirVer -gt $lFirVer ]; then
 		writeLog 'Need to be updated(需要更新)'
 		checkShaRet=$(checkSha)
