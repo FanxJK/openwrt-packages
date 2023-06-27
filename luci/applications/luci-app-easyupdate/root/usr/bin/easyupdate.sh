@@ -17,7 +17,7 @@ function writeLog() {
 function shellHelp() {
 	checkEnv
 	cat <<EOF
-Openwrt-EasyUpdate Script by sundaqiang
+Openwrt-EasyUpdate Script
 Your firmware already includes Sysupgrade and supports automatic updates(您的固件已包含sysupgrade,支持自动更新)
 参数:
     -c                     Get the cloud firmware version(获取云端固件版本)

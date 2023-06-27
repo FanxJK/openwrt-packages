@@ -1,8 +1,8 @@
 msgid "EasyUpdate"
 msgstr "OTA 更新"
 
-msgid "EasyUpdate LUCI supports scheduled upgrade & one-click firmware upgrade."
-msgstr "OTA 更新支持LUCI定时升级和一键式固件升级"
+msgid "EasyUpdate supports scheduled upgrade & one-click firmware upgrade."
+msgstr "OTA 更新支持定时升级和一键式固件升级"
 
 msgid "Update may cause the restart failure, Exercise caution when selecting automatic update."
 msgstr "升级可能导致重启失败，请谨慎选择自动升级"
