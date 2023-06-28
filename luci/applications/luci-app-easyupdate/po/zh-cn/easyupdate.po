@@ -14,7 +14,7 @@ msgid "Use Mirror"
 msgstr "使用镜像"
 
 msgid "When selected, will use the mirror when accessing Github."
-msgstr "选中后，将在访问Github时使用镜像。"
+msgstr "选中后，将在访问 Github 时使用镜像。"
 
 msgid "KEEP CONFIG"
 msgstr "保留配置"
@@ -41,16 +41,16 @@ msgid "Hour"
 msgstr "小时"
 
 msgid "Only 0 to 23 can be entered."
-msgstr "只能输入0 ~ 23"
+msgstr "只能输入 0 ~ 23"
 
 msgid "Minute"
 msgstr "分钟"
 
 msgid "Only 0 to 59 can be entered."
-msgstr "只能输入0 ~ 59"
+msgstr "只能输入 0 ~ 59"
 
 msgid "Github Url"
-msgstr "Github网址"
+msgstr "Github 网址"
 
 msgid "Firmware Upgrade"
 msgstr "固件升级"
