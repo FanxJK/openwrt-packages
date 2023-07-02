@@ -13,8 +13,8 @@ msgstr "选中后，系统将在指定的时间自动升级固件。"
 msgid "Use Mirror"
 msgstr "使用镜像"
 
-msgid "When selected, will use the mirror when accessing Github."
-msgstr "选中后，将在访问 Github 时使用镜像。"
+msgid "When checked, the mirror will be used when downloading firmware from GitHub."
+msgstr "选中后，在 GitHub 下载固件时将使用镜像。"
 
 msgid "KEEP CONFIG"
 msgstr "保留配置"

@@ -11,7 +11,7 @@ e=s:option(Flag, "enable", translate("Enable"),translate("When selected, firmwar
 e.default=0
 e.optional=false
 
-p=s:option(Flag, "proxy", translate("Use Mirror"),translate("When selected, will use the mirror when accessing Github."))
+p=s:option(Flag, "proxy", translate("Use Mirror"),translate("When checked, the mirror will be used when downloading firmware from GitHub."))
 p.default=1
 p.optional=false
 
