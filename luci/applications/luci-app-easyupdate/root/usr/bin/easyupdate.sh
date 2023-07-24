@@ -106,8 +106,16 @@ function updateCloud() {
 	writeLog 'Get the cloud firmware version(获取云端固件版本)'
 	cFirVer=$(getCloudVer)
 	writeLog "Cloud firmware version(云端固件版本):$cFirVer"
-	lFirVer=$(date -d "$(echo $lFirVer | cut -d'-' -f2 | sed 's/\./-/g')" +%s)
-	cFirVer=$(date -d "$(echo $cFirVer | cut -d'-' -f2 | sed 's/\./-/g')" +%s)
+	if [[ $lFirVer =~ "rc" ]]; then
+		lFirVer=$(date -d "$(echo $lFirVer | cut -d'-' -f3 | sed 's/\./-/g')" +%s)
+	else
+		lFirVer=$(date -d "$(echo $lFirVer | cut -d'-' -f2 | sed 's/\./-/g')" +%s)
+	fi
+	if [[ $cFirVer =~ "rc" ]]; then
+		cFirVer=$(date -d "$(echo $cFirVer | cut -d'-' -f3 | sed 's/\./-/g')" +%s)
+	else
+		cFirVer=$(date -d "$(echo $cFirVer | cut -d'-' -f2 | sed 's/\./-/g')" +%s)
+	fi
 	if [ $cFirVer -gt $lFirVer ]; then
 		writeLog 'Need to be updated(需要更新)'
 		checkShaRet=$(checkSha)
