@@ -92,8 +92,19 @@ function getver() {
             if (data && tb) {
                 if (data.newver) {
                     tb.innerHTML = '<%:Cloud Firmware Version%>: ' + data.newver;
-                    nowver = "<%=self.versions%>";
-                    const [year, month, day] = nowver.split("-")[1].split(".");
+                    let year, month, day;
+                    const nowver = "<%=self.versions%>";
+                    if (nowver.indexOf("rc") > -1) {
+                        const parts = nowver.split("-")[2].split(".");
+                        year = parts[0];
+                        month = parts[1];
+                        day = parts[2];
+                    } else {
+                        const parts = nowver.split("-")[1].split(".");
+                        year = parts[0];
+                        month = parts[1];
+                        day = parts[2];
+                    }
                     const nowverint = Math.floor(new Date(year, month - 1, day).getTime() / 1000);
                     if (data.newverint > nowverint){
                         up.value = '<%:Download Firmware%>'
