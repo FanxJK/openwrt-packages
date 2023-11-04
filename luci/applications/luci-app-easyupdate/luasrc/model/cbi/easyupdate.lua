@@ -7,7 +7,7 @@ m=Map("easyupdate",translate("EasyUpdate"),translate("EasyUpdate supports schedu
 s=m:section(TypedSection,"easyupdate")
 s.anonymous=true
 
-e=s:option(Flag, "enable", translate("Enable"),translate("When selected, firmware upgrade will be automatically at the specified time."))
+e=s:option(Flag, "enable", translate("Enable AutoUpdate"),translate("When selected, firmware upgrade will be automatically at the specified time."))
 e.default=0
 e.optional=false
 

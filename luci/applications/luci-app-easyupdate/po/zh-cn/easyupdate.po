@@ -7,6 +7,9 @@ msgstr "OTA 更新支持定时升级和一键式固件升级"
 msgid "Update may cause the restart failure, Exercise caution when selecting automatic update."
 msgstr "升级可能导致重启失败，请谨慎选择自动升级"
 
+msgid "Enable AutoUpdate"
+msgstr "启用自动更新"
+
 msgid "When selected, firmware upgrade will be automatically at the specified time."
 msgstr "选中后，系统将在指定的时间自动升级固件。"
 
