@@ -11,9 +11,8 @@ e=s:option(Flag, "enable", translate("Enable AutoUpdate"),translate("When select
 e.default=0
 e.optional=false
 
-p=s:option(Flag, "proxy", translate("Use Mirror"),translate("When checked, the mirror will be used when downloading firmware from GitHub."))
-p.default=1
-p.optional=false
+p=s:option(Value,"mirror",translate("Mirror Url"),translate("Once configured, the mirror URL will be used when accessing Github."))
+p.default=''
 
 k= s:option(Flag, "keepconfig", translate("KEEP CONFIG"),translate("When selected, configuration is retained when firmware upgrade."))
 k.default=1

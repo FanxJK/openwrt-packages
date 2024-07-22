@@ -13,11 +13,11 @@ msgstr "启用自动更新"
 msgid "When selected, firmware upgrade will be automatically at the specified time."
 msgstr "选中后，系统将在指定的时间自动升级固件。"
 
-msgid "Use Mirror"
-msgstr "使用镜像"
+msgid "Mirror Url"
+msgstr "镜像网址"
 
-msgid "When checked, the mirror will be used when downloading firmware from GitHub."
-msgstr "选中后，在 GitHub 下载固件时将使用镜像。"
+msgid "Once configured, the mirror URL will be used when accessing Github."
+msgstr "配置后，在访问Github时将使用镜像网址。"
 
 msgid "KEEP CONFIG"
 msgstr "保留配置"
