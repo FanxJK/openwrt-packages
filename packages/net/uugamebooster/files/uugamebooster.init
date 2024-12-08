@@ -41,6 +41,9 @@ start_service() {
 		uci add_list firewall.@rule[-1].proto='all'
 	fi
 
+	uci commit firewall
+	/etc/init.d/firewall restart
+
 	procd_open_instance "$CONF"
 
 	procd_set_param command "$PROG" "$UU_CONF"
