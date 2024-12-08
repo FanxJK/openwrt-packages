@@ -17,18 +17,28 @@ start_service() {
 	if [ ! -f /usr/bin/xtables-nft-multi ]; then
 		cp /usr/sbin/xtables-nft-multi /usr/bin/xtables-nft-multi
 	fi
-	rule_exists=$(uci show firewall | grep -q "Allow-uugamebooster-FORWARD" && echo 1 || echo 0)
-	if [ "$rule_exists" -eq "0" ]; then
+
+	forward_rule_exists=$(uci show firewall | grep -q "Allow-uugamebooster-Forward" && echo 1 || echo 0)
+	if [ "$forward_rule_exists" -eq "0" ]; then
 		uci add firewall rule
-		uci set firewall.@rule[-1].name='Allow-uugamebooster-FORWARD'
+		uci set firewall.@rule[-1].name='Allow-uugamebooster-Forward'
 		uci set firewall.@rule[-1].src='*'
 		uci set firewall.@rule[-1].dest='*'
 		uci set firewall.@rule[-1].target='ACCEPT'
 		uci set firewall.@rule[-1].direction='out'
 		uci set firewall.@rule[-1].device='tun163'
 		uci add_list firewall.@rule[-1].proto='all'
-		uci commit firewall
-		/etc/init.d/firewall restart
+	fi
+
+	input_rule_exists=$(uci show firewall | grep -q "Allow-uugamebooster-Input" && echo 1 || echo 0)
+	if [ "$input_rule_exists" -eq "0" ]; then
+		uci add firewall rule
+		uci set firewall.@rule[-1].name='Allow-uugamebooster-Input'
+		uci set firewall.@rule[-1].src='*'
+		uci set firewall.@rule[-1].target='ACCEPT'
+		uci set firewall.@rule[-1].direction='in'
+		uci set firewall.@rule[-1].device='tun163'
+		uci add_list firewall.@rule[-1].proto='all'
 	fi
 
 	procd_open_instance "$CONF"
@@ -44,11 +54,13 @@ start_service() {
 }
 
 stop_service() {
-	while uci show firewall | grep -q "Allow-uugamebooster-FORWARD"; do
-		rule_index=$(uci show firewall | grep -n "Allow-uugamebooster-FORWARD" | head -n 1 | cut -d'[' -f2 | cut -d']' -f1)
-		if [ -n "$rule_index" ]; then
-			uci delete firewall.@rule[$rule_index]
-		fi
+	while uci show firewall | grep -q "Allow-uugamebooster-Forward"; do
+		rule_index=$(uci show firewall | grep -n "Allow-uugamebooster-Forward" | head -n 1 | cut -d'[' -f2 | cut -d']' -f1)
+		[ -n "$rule_index" ] && uci delete firewall.@rule[$rule_index]
+	done
+	while uci show firewall | grep -q "Allow-uugamebooster-Input"; do
+		rule_index=$(uci show firewall | grep -n "Allow-uugamebooster-Input" | head -n 1 | cut -d'[' -f2 | cut -d']' -f1)
+		[ -n "$rule_index" ] && uci delete firewall.@rule[$rule_index]
 	done
 	uci commit firewall
 	/etc/init.d/firewall restart
