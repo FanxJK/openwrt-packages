@@ -54,7 +54,7 @@ start_service() {
 	fi
 
 	uci commit firewall
-	/etc/init.d/firewall restart
+	/etc/init.d/firewall reload
 
 	procd_open_instance "$CONF"
 
@@ -82,7 +82,7 @@ stop_service() {
 		[ -n "$rule_index" ] && uci delete firewall.@rule[$rule_index]
 	done
 	uci commit firewall
-	/etc/init.d/firewall restart
+	/etc/init.d/firewall reload
 }
 
 reload_service() {
