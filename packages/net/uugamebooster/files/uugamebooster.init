@@ -56,6 +56,24 @@ start_service() {
 	uci commit firewall
 	/etc/init.d/firewall reload
 
+	# Processing OpenClash firewall rules
+	if [ -f "/etc/openclash/custom/openclash_custom_localnetwork_ipv4.list" ]; then
+		if [ -n "$(tail -c1 /etc/openclash/custom/openclash_custom_localnetwork_ipv4.list)" ]; then
+			echo >> /etc/openclash/custom/openclash_custom_localnetwork_ipv4.list
+		fi
+		cat <<EOF >> /etc/openclash/custom/openclash_custom_localnetwork_ipv4.list
+# UU Game Booster Start
+163.163.0.0/24
+163.163.192.0/24
+163.163.163.0/24
+164.164.164.0/24
+# UU Game Booster End
+EOF
+		if [ -n "$(pgrep -f openclash)" ]; then
+			/etc/init.d/openclash reload firewall
+		fi
+	fi
+
 	procd_open_instance "$CONF"
 
 	procd_set_param command "$PROG" "$UU_CONF"
@@ -83,6 +101,14 @@ stop_service() {
 	done
 	uci commit firewall
 	/etc/init.d/firewall reload
+
+	# Processing OpenClash firewall rules
+	if [ -f "/etc/openclash/custom/openclash_custom_localnetwork_ipv4.list" ]; then
+		sed -i '/# UU Game Booster Start/,/# UU Game Booster End/d' /etc/openclash/custom/openclash_custom_localnetwork_ipv4.list
+		if [ -n "$(pgrep -f openclash)" ]; then
+			/etc/init.d/openclash reload firewall
+		fi
+	fi
 }
 
 reload_service() {
