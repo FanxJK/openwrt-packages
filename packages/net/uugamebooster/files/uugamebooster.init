@@ -61,6 +61,7 @@ start_service() {
 		if [ -n "$(tail -c1 /etc/openclash/custom/openclash_custom_localnetwork_ipv4.list)" ]; then
 			echo >> /etc/openclash/custom/openclash_custom_localnetwork_ipv4.list
 		fi
+		sed -i '/# UU Game Booster Start/,/# UU Game Booster End/d' /etc/openclash/custom/openclash_custom_localnetwork_ipv4.list
 		cat <<EOF >> /etc/openclash/custom/openclash_custom_localnetwork_ipv4.list
 # UU Game Booster Start
 163.163.0.0/24
