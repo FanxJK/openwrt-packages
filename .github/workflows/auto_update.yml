@@ -21,11 +21,11 @@ jobs:
         token: ${{ secrets.MY_SECRETS_TOKEN }}
         submodules: true
 
-    - name: Git Sumbodule Update
+    - name: Git Submodule Update
       run: |
         git pull --recurse-submodules
         git submodule update --remote --recursive
- 
+        
     - name: uugamebooster auto update
       run: |
         cd packages/net/uugamebooster
@@ -36,7 +36,31 @@ jobs:
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
         git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-        git commit -am "Auto update" && git push || echo "No changes to commit"
+        
+        UU_CHANGES=""
+        if [ -n "$(git status packages/net/uugamebooster/Makefile --porcelain)" ]; then
+          UU_CHANGES="uugamebooster to $(awk -F "PKG_VERSION:=" '{print $2}' "packages/net/uugamebooster/Makefile" | xargs)"
+        fi
+        
+        SUBMODULE_CHANGES=""
+        if [ -n "$(git status --porcelain | grep -E '^M.*\.gitmodules|^M.*packages')" ]; then
+          SUBMODULE_CHANGES="submodules updated"
+        fi
+        
+        if [ -n "$UU_CHANGES" ] || [ -n "$SUBMODULE_CHANGES" ]; then
+          COMMIT_MSG="Update: "
+          if [ -n "$UU_CHANGES" ]; then
+            COMMIT_MSG+="$UU_CHANGES"
+            git add packages/net/uugamebooster/Makefile
+          fi
+          if [ -n "$SUBMODULE_CHANGES" ]; then
+            [ -n "$UU_CHANGES" ] && COMMIT_MSG+=" and "
+            COMMIT_MSG+="$SUBMODULE_CHANGES"
+            git add .gitmodules packages/
+          fi
+          git commit -m "$COMMIT_MSG"
+          git push
+        fi
 
     - name: Delete workflow runs
       uses: Mattraks/delete-workflow-runs@main
