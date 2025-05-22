@@ -46,14 +46,6 @@ n.rmempty=true
 n.default=30
 n:depends("enable", "1")
 
-l=s:option(TextValue,"",translate("Log"))
-l.rmempty = true
-l.rows = 15
-function l.cfgvalue()
-	return fs.readfile("/tmp/easyupdatemain.log") or ""
-end
-l.readonly="readonly"
-
 b=s:option(Button,"",translate("Firmware Upgrade"))
 b.template="easyupdate/button"
 b.versions=_G.DISTRIB_GITHUBVER

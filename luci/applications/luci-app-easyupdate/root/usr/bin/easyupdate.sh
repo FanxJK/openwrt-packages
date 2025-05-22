@@ -21,17 +21,40 @@ Openwrt-EasyUpdate Script
 Your firmware already includes Sysupgrade and supports automatic updates(您的固件已包含sysupgrade,支持自动更新)
 参数:
     -c                     Get the cloud firmware version(获取云端固件版本)
+    -i                     Get the cloud firmware release info(获取云端固件发布信息)
     -d                     Download cloud Firmware(下载云端固件)
     -f filename                Flash firmware(刷写固件)
     -u                     One-click firmware update(一键更新固件)
 EOF
 }
 
+function fetchReleaseData() {
+	# 如果缓存文件不存在或已超过10分钟，则重新获取
+	if [ ! -f "/tmp/release_info.json" ] || [ $(( $(date +%s) - $(date -r /tmp/release_info.json +%s) )) -gt 600 ]; then
+		github=$(uci get easyupdate.main.github)
+		github=(${github//// })
+		curl -s "https://api.github.com/repos/${github[2]}/${github[3]}/releases/latest" > /tmp/release_info.json
+	fi
+}
+
 function getCloudVer() {
 	checkEnv
-	github=$(uci get easyupdate.main.github)
-	github=(${github//// })
-	curl "https://api.github.com/repos/${github[2]}/${github[3]}/releases/latest" | jsonfilter -e '@.tag_name'
+	fetchReleaseData
+	cat /tmp/release_info.json | jsonfilter -e '@.tag_name'
+}
+
+function getReleaseInfo() {
+	checkEnv
+	fetchReleaseData
+	
+	# 获取版本号
+	local version=$(cat /tmp/release_info.json | jsonfilter -e '@.tag_name')
+	
+	# 将body内容单独保存到文件中
+	cat /tmp/release_info.json | jsonfilter -e '@.body' > /tmp/release_body.txt
+	
+	# 只输出版本号
+	echo "$version"
 }
 
 function downCloudVer() {
@@ -48,7 +71,11 @@ function downCloudVer() {
 	fi
 	writeLog "Whether EFI firmware is available(是否EFI固件):$suffix"
 	writeLog 'Get the cloud firmware link(获取云端固件链接)'
-	url=$(curl "https://api.github.com/repos/${github[2]}/${github[3]}/releases/latest" | jsonfilter -e '@.assets[*].browser_download_url' | sed -n "/$suffix/p")
+	
+	# 使用已获取的release信息
+	fetchReleaseData
+	url=$(cat /tmp/release_info.json | jsonfilter -e '@.assets[*].browser_download_url' | sed -n "/$suffix/p")
+	
 	writeLog "Cloud firmware link(云端固件链接):$url"
 	mirror=$(uci get easyupdate.main.mirror)
 	writeLog "Use mirror URL(使用镜像网站):$mirror"
@@ -87,7 +114,43 @@ function checkSha() {
 			fi
 		done
 	fi
+	
+	# 添加更详细的日志
+	writeLog "Checking firmware integrity: $file"
+	
+	# 确保文件存在
+	if [ ! -f "/tmp/$file" ]; then
+		writeLog "Error: Firmware file not found: /tmp/$file"
+		echo "ERROR: File not found"
+		return 1
+	fi
+	
+	# 确保SHA文件存在
+	if [ ! -f "/tmp/$file-sha256" ]; then
+		writeLog "Error: SHA256 file not found: /tmp/$file-sha256"
+		echo "ERROR: SHA file not found"
+		return 1
+	fi
+	
+	# 先显示文件大小等信息
+	writeLog "Firmware file size: $(du -h /tmp/$file | cut -f1)"
+	
+	# 输出SHA校验文件内容供调试
+	writeLog "SHA256 file content: $(cat /tmp/$file-sha256 | grep $file)"
+	
+	# 执行校验
 	cd /tmp && sha256sum -c <(grep $file $file-sha256)
+	result=$?
+	
+	if [ $result -eq 0 ]; then
+		writeLog "Firmware integrity check: OK"
+		echo "OK: $file"
+		return 0
+	else
+		writeLog "Firmware integrity check: FAILED"
+		echo "ERROR: Checksum mismatch"
+		return 1
+	fi
 }
 
 function updateCloud() {
@@ -172,6 +235,9 @@ else
 	case $1 in
 	-c)
 		getCloudVer
+		;;
+	-i)
+		getReleaseInfo
 		;;
 	-d)
 		downCloudVer

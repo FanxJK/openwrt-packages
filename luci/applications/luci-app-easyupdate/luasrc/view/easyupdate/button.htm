@@ -1,97 +1,155 @@
 <%+cbi/valueheader%>
 	<input class="cbi-button cbi-input-reload" id="update" type="button" value="<%:Collecting data...%>" size="0" disabled onclick="check_version()">
 	<br>
-	<div class="cbi-value-description">
-		<span class="cbi-value-helpicon"><img src="/luci-static/resources/cbi/help.gif" alt="帮助"></span>
-		<span>
-		    <%:Local Firmware Version%>: <%=self.versions%>
-		</span>
-		<br>
-		<span class="cbi-value-helpicon"><img src="/luci-static/resources/cbi/help.gif" alt="帮助"></span>
-		<span id="cloudver">
-		    <%:Cloud Firmware Version%>: <%:Collecting data...%>
-		</span>
+	<div class="cbi-value-description firmware-info">
+		<div class="version-info">
+			<span class="cbi-value-helpicon"><img src="/luci-static/resources/cbi/help.gif" alt="帮助"></span>
+			<span>
+				<%:Local Firmware Version%>: <%=self.versions%>
+			</span>
+			<br>
+			<span class="cbi-value-helpicon"><img src="/luci-static/resources/cbi/help.gif" alt="帮助"></span>
+			<span id="cloudver">
+				<%:Cloud Firmware Version%>: <%:Collecting data...%>
+			</span>
+		</div>
+			<div id="release_body" class="release-notes-content"></div>
+	</div>
+	
+	<div id="log_area" style="width: 100%; margin-top: 15px; display: none;">
+		<textarea id="log_content" class="cbi-input-textarea" style="width: 100%!important; height: 300px;" readonly="readonly"></textarea>
+	</div>
+	
+	<!-- 添加升级弹窗 -->
+	<div id="upgrade_overlay" style="display: none;">
+		<div class="upgrade-message">
+			<h3><%:Firmware Upgrading%></h3>
+			<p><%:The firmware is being upgraded, please wait...%></p>
+			<p class="upgrade-warning"><%:DO NOT power off the device!%></p>
+		</div>
 	</div>
 <%+cbi/valuefooter%>
 <style type="text/css">
-	#update_apply_overlay {
-	    white-space: pre-line;
-		position: absolute;
-		top: 0;
-		left: 0;
-		bottom: 0;
-		right: 0;
-		background: rgba(0, 0, 0, 0.7);
-		display: none;
-		z-index: 20000;
-	}
-
-	#update_apply_overlay .alert-message {
-	    overflow: auto;
-		position: relative;
-		top: 10%;
-		width: 60%;
-		margin: auto;
-		display: flex;
-		flex-wrap: wrap;
-		min-height: 10%;
-		align-items: center;
-		max-height: 80%;
-	}
-
-	#update_apply_overlay .alert-message > h4,
-	#update_apply_overlay .alert-message > p,
-	#update_apply_overlay .alert-message > div {
-		flex-basis: 100%;
-	}
-
-	#update_apply_overlay .alert-message > img {
-		margin-right: 1em;
-		flex-basis: 32px;
-	}
-
-	body.apply-overlay-active {
-		overflow: hidden;
-		height: 100vh;
-	}
-
-	body.apply-overlay-active #update_apply_overlay {
-		display: block;
+	.cbi-input-textarea {
+		width: 45VW!important;
 	}
 	
-	.cbi-input-textarea {
-	    width: 45VW!important;
+	.firmware-info {
+		margin-top: 10px;
+	}
+	
+	.release-notes-header {
+		font-weight: bold;
+		margin-bottom: 5px;
+		border-bottom: 1px solid #ddd;
+		padding-bottom: 5px;
+	}
+	
+	.release-notes-content {
+		white-space: pre-line;
+		padding: 8px;
+		background-color: #f9f9f9;
+		border: 1px solid #e0e0e0;
+		border-radius: 4px;
+		font-size: 0.95em;
+		max-height: 350px;
+		overflow-y: auto;
+	}
+	
+	@media (max-width: 992px) {
+		.release-notes-content {
+			max-height: 250px;
+		}
+	}
+	
+	/* 升级弹窗样式 */
+	#upgrade_overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background-color: rgba(0, 0, 0, 0.7);
+		z-index: 10000;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	
+	.upgrade-message {
+		background-color: white;
+		padding: 30px;
+		border-radius: 8px;
+		width: 80%;
+		max-width: 400px;
+		text-align: center;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	}
+	
+	.upgrade-message h3 {
+		margin-top: 0;
+		color: #0066CC;
+		font-size: 24px;
+	}
+	
+	.upgrade-warning {
+		color: #e53935;
+		font-weight: bold;
+		margin-top: 15px;
+		font-size: 16px;
 	}
 </style>
 <script type="text/javascript">
-function update_status_message(type, content) {
-	document.getElementById('update_apply_overlay') || document.body.insertAdjacentHTML("beforeend",'<div id="update_apply_overlay"><div class="alert-message"></div></div>')
-	var overlay = document.getElementById('update_apply_overlay')
-	message = overlay.querySelector('.alert-message');
-	if (message && type) {
-		if (!message.classList.contains(type)) {
-			message.classList.remove('notice');
-			message.classList.remove('warning');
-			message.classList.add(type);
-		}
-		if (content)
-			message.innerHTML = content;
-            message.scrollTop = message.scrollHeight;
-		document.body.classList.add('apply-overlay-active');
-		document.body.scrollTop = document.documentElement.scrollTop = 0;
-	}
-	else {
-		document.body.classList.remove('apply-overlay-active');
+
+// 显示升级弹窗
+function showUpgradeOverlay() {
+	document.getElementById('upgrade_overlay').style.display = 'flex';
+}
+
+// 隐藏升级弹窗
+function hideUpgradeOverlay() {
+	document.getElementById('upgrade_overlay').style.display = 'none';
+}
+
+function update_log_content(content) {
+	var log_area = document.getElementById('log_area');
+	var log_content = document.getElementById('log_content');
+	
+	if (log_area && log_content) {
+		log_area.style.display = 'block';
+		log_content.value = content;
+		log_content.scrollTop = log_content.scrollHeight;
 	}
 }
+
 function getver() {
     XHR.get('<%=url([[admin]], [[services]], [[easyupdate]], [[getver]])%>', null,
         function(x, data) {
-            const tb = document.getElementById('cloudver');
+            const cloudver = document.getElementById('cloudver');
             const up = document.getElementById('update');
-            if (data && tb) {
+            
+            // 检查localStorage中是否有之前下载好的固件信息
+            try {
+                const savedFirmware = localStorage.getItem('firmware_ready');
+                if (savedFirmware) {
+                    // 如果有，直接显示固件升级按钮
+                    up.value = '<%:Firmware Upgrade%>';
+                    up.setAttribute('flash', 1);
+                    up.setAttribute('file', savedFirmware);
+                    up.disabled = false;
+                    return; // 跳过后续检查
+                }
+            } catch(e) {}
+            
+            if (data && cloudver) {
                 if (data.newver) {
-                    tb.innerHTML = '<%:Cloud Firmware Version%>: ' + data.newver;
+                    cloudver.innerHTML = '<%:Cloud Firmware Version%>: ' + data.newver;
+                    
+                    // 显示release notes
+                    if (data.body) {
+                        document.getElementById('release_body').innerHTML = data.body;
+                    }
+                    
                     let year, month, day;
                     const nowver = "<%=self.versions%>";
                     if (nowver.indexOf("rc") > -1) {
@@ -115,7 +173,7 @@ function getver() {
                         up.disabled = true
                     }
                 }else{
-                    tb.innerHTML = '<%:Cloud Firmware Version%>:<%:Collecting data...%>';
+                    cloudver.innerHTML = '<%:Cloud Firmware Version%>:<%:Collecting data...%>';
                     up.value = '<%:Retry Firmware Check%>'
                     up.disabled = false
                 }
@@ -132,33 +190,43 @@ function getver() {
 	});
 }
 getver()
+
+// 清除固件缓存信息
+function clearFirmwareCache() {
+    try {
+        localStorage.removeItem('firmware_ready');
+    } catch(e) {}
+}
+
 function check_version() {
     const tb = document.getElementById('update');
     const flash= tb.getAttribute("flash")
     if (flash){
+        // 显示升级弹窗
+        showUpgradeOverlay();
+        
         XHR.get('<%=url([[admin]], [[services]], [[easyupdate]], [[flash]])%>', {file: tb.getAttribute("file")}, (x, r) => {
             if (r.code == 1) {
+                // 清除缓存，因为固件正在刷入
+                clearFirmwareCache();
                 XHR.poll(1, '<%=url([[admin]], [[services]], [[easyupdate]], [[getlog]])%>', null,(x, r) => {
-                    update_status_message('notice', r.data);
+                    update_log_content(document.getElementById('log_content').value + "\n" + r.data);
+                    
 					if (r.data.indexOf("Image check failed.") > -1){
-                        XHR.halt()
-                        update_status_message('warning', r.data);
-                        document.getElementById('update_apply_overlay').addEventListener("click", (e)=>{
-                            update_status_message()
-                        })
+                        XHR.halt();
+                        hideUpgradeOverlay();
                     }else{
 						if (r.data.indexOf("Commencing upgrade") > -1 ){
-							XHR.halt()
+							XHR.halt();
+							// 等待固定时间后直接跳转到主页
 							setTimeout(() => {
-								location.replace(document.location.origin)
-							},180000);
-						}else{
-                            update_status_message('notice', r.data);
-                        }
+								window.location.href = '/';
+							}, 300000); // 等待5分钟后跳转
+						}
                     }
-
                 })
             } else {
+                hideUpgradeOverlay();
                 tb.disabled = false;
                 tb.value = '<%:Retry Firmware Upgrade%>';
             }
@@ -167,39 +235,78 @@ function check_version() {
     }
     const newver= tb.getAttribute("newver")
     if (newver){
+        // 清除之前的固件缓存，因为正在下载新固件
+        clearFirmwareCache();
         tb.disabled = true;
+        tb.value = '<%:Downloading...%>';
         XHR.get('<%=url([[admin]], [[services]], [[easyupdate]], [[download]])%>', null, (x, r) => {
             if (r.code == 1) {
+				// 添加调试日志
+				let logContent = document.getElementById('log_content').value || "";
+				logContent += "\n下载响应: " + JSON.stringify(r);
+				update_log_content(logContent);
+				
+				// 确保文件名有效
+				if (!r.data) {
+					update_log_content(logContent + "\n错误: 未获取到有效的文件名!");
+					tb.disabled = false;
+					tb.value = '<%:Retry Firmware Download%>';
+					return;
+				}
+				
+				// 设置文件名
 				tb.setAttribute('file', r.data);
+				update_log_content(logContent + "\n设置文件名: " + r.data);
+				
                 XHR.poll(1, '<%=url([[admin]], [[services]], [[easyupdate]], [[getlog]])%>', null,(x, r) => {
+                    update_log_content(document.getElementById('log_content').value + "\n" + r.data);
                     if (r.data.indexOf("transfer closed") > -1 || r.data.indexOf("Could not resolve host") > -1){
                         XHR.halt()
-                        update_status_message('warning', r.data);
-                        document.getElementById('update_apply_overlay').addEventListener("click", (e)=>{
-                            update_status_message()
-                        })
+                        clearFirmwareCache(); // 下载错误时清除缓存
+                        tb.disabled = false;
+                        tb.value = '<%:Retry Firmware Download%>';
                     }else{
                         if (/100\s.+M\s+100.+--:--:--/.test(r.data)){
-							XHR.get('<%=url([[admin]], [[services]], [[easyupdate]], [[check]])%>', {file: tb.getAttribute("file")}, (x, r) => {
-								XHR.halt()
-								if (r.code == 1 && r.data.indexOf("OK") > -1) {
-									setTimeout(() => {
-										update_status_message();
-										tb.value = '<%:Firmware Upgrade%>'
-										tb.setAttribute('flash', 1);
-									},3000);
-								}else{
-									update_status_message('warning', r.data);
-									document.getElementById('update_apply_overlay').addEventListener("click", (e)=>{
-										update_status_message()
-									})
-								}
-							});
-                        }else{
-                            update_status_message('notice', r.data);
+							XHR.halt();
+							// 添加进度显示
+							tb.value = '<%:Download Complete%>';
+							let completeLog = document.getElementById('log_content').value + "\n\n固件下载完成，等待系统处理文件...";
+							completeLog += "\n当前文件名: " + tb.getAttribute('file');
+							update_log_content(completeLog);
+							
+							// 延迟检查，确保文件已完全写入
+							setTimeout(() => {
+								tb.value = '<%:Waiting for file sync...%>';
+								update_log_content(document.getElementById('log_content').value + "\n正在等待文件系统同步...");
+								
+								// 再次延迟，确保文件系统已同步
+								setTimeout(() => {
+									tb.value = '<%:Checking firmware...%>';
+									// 再次验证文件名
+									let filename = tb.getAttribute('file');
+									if (!filename || filename === 'undefined') {
+										let errLog = document.getElementById('log_content').value + "\n错误: 文件名无效 (" + filename + ")";
+										update_log_content(errLog);
+										
+										// 尝试从日志中提取文件名
+										let logContent = document.getElementById('log_content').value || "";
+										let match = logContent.match(/immortalwrt[a-zA-Z0-9._-]+\.img\.gz/);
+										if (match) {
+											filename = match[0];
+											tb.setAttribute('file', filename);
+											update_log_content(errLog + "\n已从日志中提取文件名: " + filename);
+										} else {
+											tb.disabled = false;
+											tb.value = '<%:Retry Firmware Download%>';
+											update_log_content(errLog + "\n无法恢复文件名，请重试下载");
+											return;
+										}
+									}
+									checkFirmware(tb);
+								}, 5000);
+							}, 3000);
                         }
                     }
-                    tb.disabled = false;
                 })
             } else {
                 tb.disabled = false;
@@ -209,5 +316,92 @@ function check_version() {
     }else{
         getver()
     }
+}
+
+// 检查固件完整性的函数
+function checkFirmware(tb, retryCount = 0) {
+	// 最多重试5次
+	const maxRetries = 5;
+	
+	// 显示调试信息
+	let logContent = document.getElementById('log_content').value || "";
+	logContent += "\n正在检查固件完整性，尝试 " + (retryCount + 1) + "/" + (maxRetries + 1) + "...";
+	update_log_content(logContent);
+	
+	XHR.get('<%=url([[admin]], [[services]], [[easyupdate]], [[check]])%>', {file: tb.getAttribute("file")}, (x, r) => {
+		if (r && r.code == 1) {
+			// 将校验结果添加到日志
+			logContent = document.getElementById('log_content').value || "";
+			logContent += "\n" + r.data;
+			update_log_content(logContent);
+			
+			if (r.data && r.data.indexOf("OK") > -1) {
+				// 下载和检查完成后立即更新按钮状态
+				tb.value = '<%:Firmware Upgrade%>';
+				tb.setAttribute('flash', 1);
+				tb.disabled = false;
+				
+				// 记录成功状态到localStorage，以便刷新页面时恢复
+				try {
+					localStorage.setItem('firmware_ready', tb.getAttribute("file"));
+				} catch(e) {}
+				
+				logContent = document.getElementById('log_content').value || "";
+				logContent += "\n固件校验成功，可以点击升级按钮刷写固件。";
+				update_log_content(logContent);
+			} else {
+				// 如果校验失败但还有重试次数
+				if (retryCount < maxRetries) {
+					tb.value = '<%:Checking firmware...%> (' + (retryCount + 1) + '/' + (maxRetries + 1) + ')';
+					
+					// 显示更详细的日志
+					if (r.data) {
+						logContent = document.getElementById('log_content').value || "";
+						logContent += "\n校验暂未成功，" + (retryCount + 1) + 
+							"秒后将重试...\n错误信息: " + r.data;
+						update_log_content(logContent);
+					}
+					
+					// 递增重试延迟，等待更长时间
+					setTimeout(() => {
+						checkFirmware(tb, retryCount + 1);
+					}, (retryCount + 1) * 1000);
+				} else {
+					// 如果所有重试都失败
+					clearFirmwareCache();
+					tb.value = '<%:Firmware Check Failed%>';
+					tb.disabled = false;
+					
+					// 添加错误详情到日志
+					logContent = document.getElementById('log_content').value || "";
+					logContent += "\n\n固件校验失败！请查看 /tmp/easyupdatemain.log 获取更多信息。";
+					logContent += "\n如果您确认下载完成，可以尝试刷新页面后再检查。";
+					update_log_content(logContent);
+					
+					setTimeout(() => {
+						tb.value = '<%:Retry Firmware Download%>';
+					}, 5000);
+				}
+			}
+		} else {
+			// 请求失败
+			logContent = document.getElementById('log_content').value || "";
+			logContent += "\n请求校验接口失败，将重试...";
+			update_log_content(logContent);
+			
+			if (retryCount < maxRetries) {
+				setTimeout(() => {
+					checkFirmware(tb, retryCount + 1);
+				}, 1000);
+			} else {
+				clearFirmwareCache();
+				tb.value = '<%:API Check Failed%>';
+				tb.disabled = false;
+				setTimeout(() => {
+					tb.value = '<%:Retry Firmware Download%>';
+				}, 3000);
+			}
+		}
+	});
 }
 </script>
