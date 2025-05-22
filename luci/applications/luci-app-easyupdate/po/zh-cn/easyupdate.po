@@ -78,3 +78,36 @@ msgstr "重试固件升级"
 
 msgid "Retry Firmware Download"
 msgstr "重试固件下载"
+
+msgid "Collecting data..."
+msgstr "正在收集数据..."
+
+msgid "Downloading..."
+msgstr "正在下载..."
+
+msgid "Download Complete"
+msgstr "下载完成"
+
+msgid "Waiting for file sync..."
+msgstr "等待文件同步..."
+
+msgid "Checking firmware..."
+msgstr "正在检查固件..."
+
+msgid "Firmware Check Failed"
+msgstr "固件检查失败"
+
+msgid "API Check Failed"
+msgstr "API检查失败"
+
+msgid "The firmware is being upgraded, please wait..."
+msgstr "固件正在升级中，请稍候..."
+
+msgid "DO NOT power off the device!"
+msgstr "请勿断开电源！"
+
+msgid "Firmware Upgrading"
+msgstr "固件升级中"
+
+msgid "ERROR: Invalid filename"
+msgstr "错误：无效的文件名"
