@@ -16,8 +16,6 @@ include $(INCLUDE_DIR)/package.mk
 
 STRIP:=true
 
-TAR_CMD=$(HOST_TAR) -C $(1)/ $(TAR_OPTIONS)
-
 define Package/fakehttp
 	SECTION:=net
 	CATEGORY:=Network
