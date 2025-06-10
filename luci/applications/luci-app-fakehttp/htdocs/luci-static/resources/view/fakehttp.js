@@ -10,6 +10,9 @@ return view.extend({
         var m = new form.Map('fakehttp', 'FakeHTTP 服务',
             '用法: <a href="https://github.com/MikeWang000000/FakeHTTP/wiki" target="_blank">https://github.com/MikeWang000000/FakeHTTP/wiki</a>'
         );
+
+        this.map = m;
+
         var s = m.section(form.NamedSection, 'main', 'fakehttp');
         s.anonymous = true;
 
@@ -45,10 +48,12 @@ return view.extend({
         xopt.datatype = 'uinteger';
         xopt.rmempty = true;
 
-        s.on('apply', function() {
+        return m.render();
+    },
+
+    handleSaveApply: function(ev) {
+        return this.super('handleSaveApply', [ev]).then(function() {
             return fs.exec('/etc/init.d/fakehttp', ['restart']);
         });
-
-        return m.render();
     }
 }); 
