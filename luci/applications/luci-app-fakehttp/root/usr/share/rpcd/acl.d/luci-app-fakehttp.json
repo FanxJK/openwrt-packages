@@ -3,7 +3,8 @@
     "description": "Grant UCI access for luci-app-fakehttp",
     "read": {
       "file": {
-        "/var/run/fakehttp/*": [ "read" ]
+        "/var/run/fakehttp/*": [ "read" ],
+        "/etc/init.d/fakehttp": [ "exec" ]
       },
       "ubus": {
         "service": [ "list" ]
@@ -12,6 +13,10 @@
     },
     "write": {
       "uci": [ "fakehttp" ]
+    },
+    "exec": {
+      "/etc/init.d/fakehttp": [ "start", "stop", "restart", "status" ],
+      "/bin/ps": [ "*" ]
     }
   }
-} 
+}

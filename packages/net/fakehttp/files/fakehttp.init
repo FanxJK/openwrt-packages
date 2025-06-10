@@ -1,5 +1,5 @@
 #!/bin/sh /etc/rc.common
-# Copyright (C) 2024
+# Copyright (C) 2025
 
 START=99
 STOP=10
@@ -12,6 +12,8 @@ PROG=/usr/bin/fakehttp
 start_service() {
 	config_load fakehttp
 	config_get_bool enabled main enabled 0
+
+	# Check if service is enabled
 	[ "$enabled" -eq 1 ] || return 1
 
 	config_get host main host
@@ -22,41 +24,39 @@ start_service() {
 	config_get ttl main ttl
 	config_get mask main mask
 
+	# Validate required parameters
+	if [ -z "$iface" ]; then
+		echo "Error: Network interface (iface) is required"
+		return 1
+	fi
+
 	procd_open_instance
 	procd_set_param command /usr/bin/fakehttp
 
-	procd_append_param command -h "$host"
-	
-	if [ -n "$iface" ]; then
-		procd_append_param command -i "$iface"
-	fi
+	[ -n "$host" ] && procd_append_param command -h "$host"
+	[ -n "$iface" ] && procd_append_param command -i "$iface"
 	[ -n "$mark" ] && procd_append_param command -m "$mark"
 	[ -n "$num" ] && procd_append_param command -n "$num"
 	[ -n "$repeat" ] && procd_append_param command -r "$repeat"
 	[ -n "$ttl" ] && procd_append_param command -t "$ttl"
 	[ -n "$mask" ] && procd_append_param command -x "$mask"
-	
+
 	procd_set_param respawn
-	procd_set_param stdout 1
-	procd_set_param stderr 1
-	
+	procd_set_param stdout 0
+	procd_set_param stderr 0
+
 	procd_close_instance
 }
 
 stop_service() {
-	killall fakehttp 2>/dev/null
+	procd_kill fakehttp
 }
 
-start() {
-	start_service
+reload_service() {
+	stop
+	start
 }
 
-stop() {
-	stop_service
+service_triggers() {
+	procd_add_reload_trigger "fakehttp"
 }
-
-restart() {
-	stop_service
-	sleep 1
-	start_service
-} 

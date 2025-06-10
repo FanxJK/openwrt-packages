@@ -1,22 +1,65 @@
-"use strict";
+'use strict';
 'require view';
 'require form';
 'require uci';
+'require rpc';
 'require tools.widgets as widgets';
-'require fs';
+
+var callServiceList = rpc.declare({
+    object: 'service',
+    method: 'list',
+    params: ['name'],
+    expect: { '': {} }
+});
 
 return view.extend({
+    load: function() {
+        return Promise.all([
+            uci.load('fakehttp')
+        ]);
+    },
+
     render: function() {
-        var m = new form.Map('fakehttp', 'FakeHTTP 服务',
+        var m = new form.Map('fakehttp', 'FakeHTTP',
+            '一个能将所有 TCP 连接混淆为 HTTP 协议的工具。使用 Netfilter Queue (NFQUEUE) 实现。' + '<br />' +
             '用法: <a href="https://github.com/MikeWang000000/FakeHTTP/wiki" target="_blank">https://github.com/MikeWang000000/FakeHTTP/wiki</a>'
         );
 
-        this.map = m;
+        // Status section - independent status box
+        var statusSection = m.section(form.TypedSection, 'fakehttp');
+        statusSection.anonymous = true;
+        statusSection.addremove = false;
+        statusSection.template = 'cbi/nullsection';
+
+        var status = statusSection.option(form.DummyValue, '_status');
+        status.render = function() {
+            return callServiceList('fakehttp').then(function(res) {
+                var isRunning = false;
+                try {
+                    isRunning = res.fakehttp && res.fakehttp.instances &&
+                               Object.keys(res.fakehttp.instances).length > 0;
+                } catch (e) {
+                    isRunning = false;
+                }
+
+                var statusText = isRunning ?
+                    '<em><b><font color="green">FakeHTTP ' + _('RUNNING') + '</font></b></em>' :
+                    '<em><b><font color="red">FakeHTTP ' + _('NOT RUNNING') + '</font></b></em>';
+
+                return E('fieldset', { class: 'cbi-section' }, [
+                    E('p', { style: 'margin: 10px; font-size: 16px;' }, statusText)
+                ]);
+            }).catch(function() {
+                return E('fieldset', { class: 'cbi-section' }, [
+                    E('p', { style: 'margin: 10px; font-size: 16px;' }, '<em>' + _('Collecting data...') + '</em>')
+                ]);
+            });
+        };
 
         var s = m.section(form.NamedSection, 'main', 'fakehttp');
         s.anonymous = true;
 
-        var o_enabled = s.option(form.Flag, 'enabled', '启用');
+        var o_enabled = s.option(form.Flag, 'enabled', '启用服务');
         o_enabled.default = '0';
         o_enabled.rmempty = false;
 
@@ -24,7 +67,7 @@ return view.extend({
         o_host.default = 'speedtest.cn';
         o_host.rmempty = false;
 
-        var i = s.option(widgets.NetworkSelect, 'iface', '网络接口名称 (-i)');
+        var i = s.option(widgets.DeviceSelect, 'iface', '网络接口名称 (-i)');
         i.rmempty = false;
         i.nocreate = true;
 
@@ -52,8 +95,6 @@ return view.extend({
     },
 
     handleSaveApply: function(ev) {
-        return this.super('handleSaveApply', [ev]).then(function() {
-            return fs.exec('/etc/init.d/fakehttp', ['restart']);
-        });
+        return this.super('handleSaveApply', [ev]);
     }
-}); 
+});
