@@ -6,6 +6,9 @@ STOP=10
 
 USE_PROCD=1
 
+NAME=fakehttp
+PROG=/usr/bin/fakehttp
+
 start_service() {
 	config_load fakehttp
 	config_get enabled main enabled

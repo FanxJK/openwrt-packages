@@ -29,6 +29,11 @@ endef
 define Package/fakehttp/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/fakehttp $(1)/usr/bin/
+	$(INSTALL_DIR) $(1)/etc/config
+endef
+
+define Package/fakehttp/conffiles
+/etc/config/fakehttp
 endef
 
 $(eval $(call BuildPackage,fakehttp))
