@@ -5,12 +5,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=fakehttp
-PKG_VERSION:=0.9.12
+PKG_VERSION:=0.9.13
 PKG_RELEASE:=1
 
 PKG_SOURCE:=fakehttp-linux-x86_64.tar.gz
 PKG_SOURCE_URL:=https://github.com/MikeWang000000/FakeHTTP/releases/download/$(PKG_VERSION)/
-PKG_HASH:=c4fe9224abd090afe349e8eb21e53b7c4e3fb53eae8a2293db964450f063a57e
+PKG_HASH:=a1c50d5c435934b64e004d02c4d3c439317770e9884d5a5ef077f58dece1e62a
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -23,11 +23,21 @@ define Package/fakehttp
 	CATEGORY:=Network
 	TITLE:=FakeHTTP
 	URL:=https://github.com/MikeWang000000/FakeHTTP
-	DEPENDS:=+kmod-nft-queue +kmod-nf-conntrack +iptables-mod-nfqueue +iptables-mod-conntrack-extra
+	DEPENDS:=@x86_64 +kmod-nft-queue +kmod-nf-conntrack +iptables-mod-nfqueue +iptables-mod-conntrack-extra
 endef
 
 define Package/fakehttp/description
 	Obfuscate all your TCP connections into HTTP protocol, using Netfilter Queue (NFQUEUE).
+endef
+
+define Build/Prepare
+	$(call Build/Prepare/Default)
+	# The downloaded tar.gz extracts to fakehttp-linux-x86_64/ directory containing fakehttp binary
+	if [ -f $(PKG_BUILD_DIR)/fakehttp-linux-x86_64/fakehttp ]; then \
+		mv $(PKG_BUILD_DIR)/fakehttp-linux-x86_64/fakehttp $(PKG_BUILD_DIR)/fakehttp; \
+	fi
+	# Make sure the binary is executable
+	chmod +x $(PKG_BUILD_DIR)/fakehttp 2>/dev/null || true
 endef
 
 define Build/Compile
