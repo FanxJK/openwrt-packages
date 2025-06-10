@@ -12,6 +12,8 @@ PKG_SOURCE:=fakehttp-linux-x86_64.tar.gz
 PKG_SOURCE_URL:=https://github.com/MikeWang000000/FakeHTTP/releases/download/$(PKG_VERSION)/
 PKG_HASH:=a1c50d5c435934b64e004d02c4d3c439317770e9884d5a5ef077f58dece1e62a
 
+PKG_BUILD_DIR:=$(BUILD_DIR)/fakehttp-linux-x86_64
+
 include $(INCLUDE_DIR)/package.mk
 
 STRIP:=true
@@ -30,10 +32,6 @@ endef
 
 define Build/Prepare
 	$(call Build/Prepare/Default)
-	# The downloaded tar.gz extracts to fakehttp-linux-x86_64/ directory containing fakehttp binary
-	if [ -f $(PKG_BUILD_DIR)/fakehttp-linux-x86_64/fakehttp ]; then \
-		mv $(PKG_BUILD_DIR)/fakehttp-linux-x86_64/fakehttp $(PKG_BUILD_DIR)/fakehttp; \
-	fi
 	# Make sure the binary is executable
 	chmod +x $(PKG_BUILD_DIR)/fakehttp 2>/dev/null || true
 endef
