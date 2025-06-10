@@ -7,7 +7,7 @@ LUCI_TITLE:=LuCI support for FakeHTTP
 LUCI_DEPENDS:=+fakehttp
 LUCI_PKGARCH:=all
 
-define Package/luci-app-fakehttp/description
+define Package/$(PKG_NAME)/description
   LuCI interface for FakeHTTP.
 endef
 
