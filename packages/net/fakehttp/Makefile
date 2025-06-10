@@ -19,15 +19,15 @@ STRIP:=true
 TAR_CMD=$(HOST_TAR) -C $(1)/ $(TAR_OPTIONS)
 
 define Package/fakehttp
-  SECTION:=net
-  CATEGORY:=Network
-  TITLE:=FakeHTTP
-  URL:=https://github.com/MikeWang000000/FakeHTTP
-  DEPENDS:=+kmod-nft-queue +kmod-nf-conntrack +iptables-mod-nfqueue +iptables-mod-conntrack-extra
+	SECTION:=net
+	CATEGORY:=Network
+	TITLE:=FakeHTTP
+	URL:=https://github.com/MikeWang000000/FakeHTTP
+	DEPENDS:=+kmod-nft-queue +kmod-nf-conntrack +iptables-nft-nfqueue
 endef
 
 define Package/fakehttp/description
-  Obfuscate all your TCP connections into HTTP protocol, using Netfilter Queue (NFQUEUE).
+	Obfuscate all your TCP connections into HTTP protocol, using Netfilter Queue (NFQUEUE).
 endef
 
 define Build/Compile
@@ -38,8 +38,8 @@ define Package/fakehttp/conffiles
 endef
 
 define Package/fakehttp/install
-  $(INSTALL_DIR) $(1)/usr/bin
-  $(INSTALL_BIN) $(PKG_BUILD_DIR)/fakehttp $(1)/usr/bin/
+	$(INSTALL_DIR) $(1)/usr/bin
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/fakehttp $(1)/usr/bin/
 
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/fakehttp.config $(1)/etc/config/fakehttp
