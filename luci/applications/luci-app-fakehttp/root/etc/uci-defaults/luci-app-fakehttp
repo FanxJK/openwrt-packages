@@ -1,0 +1,12 @@
+#!/bin/sh
+
+uci -q batch <<-EOF >/dev/null
+	delete ucitrack.@fakehttp[-1]
+	add ucitrack fakehttp
+	set ucitrack.@fakehttp[-1].init=fakehttp
+	commit ucitrack
+EOF
+
+rm -f /tmp/luci-indexcache
+exit 0
+

@@ -1,0 +1,13 @@
+{
+  "admin/services/fakehttp": {
+    "title": "FakeHTTP",
+    "action": {
+      "type": "view",
+      "path": "view/fakehttp"
+    },
+    "depends": {
+        "acl": [ "luci-app-fakehttp" ],
+        "fs": { "/etc/config/fakehttp": "file" }
+    }
+  }
+} 

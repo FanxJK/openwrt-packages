@@ -1,0 +1,47 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2024
+
+START=99
+STOP=10
+
+USE_PROCD=1
+
+start_service() {
+	config_load fakehttp
+	config_get enabled main enabled
+	config_get host main host
+	config_get iface main iface
+	config_get mark main mark
+	config_get num main num
+	config_get repeat main repeat
+	config_get ttl main ttl
+	config_get mask main mask
+	if [ "$enabled" = "1" ]; then
+		killall fakehttp 2>/dev/null
+		CMD="fakehttp -h \"$host\" -i \"$iface\""
+		[ -n "$mark" ] && CMD="$CMD -m $mark"
+		[ -n "$num" ] && CMD="$CMD -n $num"
+		[ -n "$repeat" ] && CMD="$CMD -r $repeat"
+		[ -n "$ttl" ] && CMD="$CMD -t $ttl"
+		[ -n "$mask" ] && CMD="$CMD -x $mask"
+		sh -c "$CMD >/dev/null 2>&1 &"
+	fi
+}
+
+stop_service() {
+	killall fakehttp 2>/dev/null
+}
+
+start() {
+	start_service
+}
+
+stop() {
+	stop_service
+}
+
+restart() {
+	stop_service
+	sleep 1
+	start_service
+} 

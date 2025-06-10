@@ -1,0 +1,4 @@
+config fakehttp 'main'
+	option enabled '0'
+	option host 'speedtest.cn'
+	option iface 'eth0' 
