@@ -3,11 +3,10 @@
     "title": "FakeHTTP",
     "action": {
       "type": "view",
-      "path": "view/fakehttp"
+      "path": "fakehttp"
     },
     "depends": {
-        "acl": [ "luci-app-fakehttp" ],
-        "fs": { "/etc/config/fakehttp": "file" }
+        "acl": [ "luci-app-fakehttp" ]
     }
   }
 } 
