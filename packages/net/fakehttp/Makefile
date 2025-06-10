@@ -22,6 +22,10 @@ define Package/fakehttp
   DEPENDS:=+kmod-nft-queue +kmod-nf-conntrack +iptables-mod-nfqueue +iptables-mod-conntrack-extra
 endef
 
+define Package/fakehttp/description
+  Obfuscate all your TCP connections into HTTP protocol, using Netfilter Queue (NFQUEUE).
+endef
+
 define Package/fakehttp/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/fakehttp $(1)/usr/bin/

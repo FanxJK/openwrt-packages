@@ -14,6 +14,8 @@ return view.extend({
         s.anonymous = true;
 
         s.option(form.Flag, 'enabled', '启用');
+        o.default = '0';
+        o.rmempty = false;
 
         var o = s.option(form.Value, 'host', '用于混淆的主机名 (-h)');
         o.default = 'speedtest.cn';
@@ -21,6 +23,7 @@ return view.extend({
 
         var i = s.option(widgets.NetworkSelect, 'iface', '网络接口名称 (-i)');
         i.rmempty = false;
+        i.nocreate = true;
 
         var mopt = s.option(form.Value, 'mark', 'fwmark 标记 (-m)');
         mopt.datatype = 'uinteger';
