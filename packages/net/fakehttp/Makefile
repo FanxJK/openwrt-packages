@@ -41,9 +41,11 @@ define Package/fakehttp/install
   $(INSTALL_DIR) $(1)/usr/bin
   $(INSTALL_BIN) $(PKG_BUILD_DIR)/fakehttp $(1)/usr/bin/
 
-  $(INSTALL_DIR) $(1)/etc/config $(1)/etc/init.d
-  $(INSTALL_CONF) ./files/fakehttp.config $(1)/etc/config/fakehttp
-  $(INSTALL_BIN) ./files/fakehttp.init $(1)/etc/init.d/fakehttp
+	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_CONF) ./files/fakehttp.config $(1)/etc/config/fakehttp
+
+	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_BIN) ./files/fakehttp.init $(1)/etc/init.d/fakehttp
 endef
 
 $(eval $(call BuildPackage,fakehttp))
