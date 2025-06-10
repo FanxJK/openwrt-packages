@@ -14,9 +14,6 @@ start_service() {
 	local enabled
 	config_get_bool enabled "config" "enabled" "0"
 	[ "$enabled" -eq "1" ] || return 1
-
-	# Kill any existing uugamebooster processes to prevent duplicates
-	killall uugamebooster 2>/dev/null || true
 	if [ ! -f /usr/bin/xtables-nft-multi ]; then
 		cp /usr/sbin/xtables-nft-multi /usr/bin/xtables-nft-multi
 	fi
@@ -116,8 +113,8 @@ stop_service() {
 }
 
 reload_service() {
-	stop_service
-	start_service
+	stop
+	start
 }
 
 service_triggers() {

@@ -53,8 +53,8 @@ stop_service() {
 }
 
 reload_service() {
-	stop_service
-	start_service
+	stop
+	start
 }
 
 service_triggers() {
