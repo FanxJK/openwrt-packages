@@ -13,13 +13,13 @@ return view.extend({
         var s = m.section(form.NamedSection, 'main', 'fakehttp');
         s.anonymous = true;
 
-        s.option(form.Flag, 'enabled', '启用');
-        o.default = '0';
-        o.rmempty = false;
+        var o_enabled = s.option(form.Flag, 'enabled', '启用');
+        o_enabled.default = '0';
+        o_enabled.rmempty = false;
 
-        var o = s.option(form.Value, 'host', '用于混淆的主机名 (-h)');
-        o.default = 'speedtest.cn';
-        o.rmempty = false;
+        var o_host = s.option(form.Value, 'host', '用于混淆的主机名 (-h)');
+        o_host.default = 'speedtest.cn';
+        o_host.rmempty = false;
 
         var i = s.option(widgets.NetworkSelect, 'iface', '网络接口名称 (-i)');
         i.rmempty = false;
@@ -45,9 +45,6 @@ return view.extend({
         xopt.datatype = 'uinteger';
         xopt.rmempty = true;
 
-        s.on('save', function() {
-            uci.save();
-        });
         s.on('apply', function() {
             return fs.exec('/etc/init.d/fakehttp', ['restart']);
         });
