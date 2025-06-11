@@ -23,7 +23,7 @@ define Package/fakehttp
 	CATEGORY:=Network
 	TITLE:=FakeHTTP
 	URL:=https://github.com/MikeWang000000/FakeHTTP
-	DEPENDS:=@x86_64 +kmod-nft-queue +kmod-nf-conntrack +iptables-mod-nfqueue +iptables-mod-conntrack-extra
+	DEPENDS:=@x86_64 +kmod-nft-queue
 endef
 
 define Package/fakehttp/description
