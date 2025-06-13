@@ -5,12 +5,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=fakehttp
-PKG_VERSION:=0.9.13
+PKG_VERSION:=0.9.14
 PKG_RELEASE:=1
 
 PKG_SOURCE:=fakehttp-linux-x86_64.tar.gz
 PKG_SOURCE_URL:=https://github.com/MikeWang000000/FakeHTTP/releases/download/$(PKG_VERSION)/
-PKG_HASH:=a1c50d5c435934b64e004d02c4d3c439317770e9884d5a5ef077f58dece1e62a
+PKG_HASH:=0927e6b2939a38a1263358ffedfa96bba9c58d71aec3ebfe00823e1bffc9dd2c
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/fakehttp-linux-x86_64
 
