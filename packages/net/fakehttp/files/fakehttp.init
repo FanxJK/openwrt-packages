@@ -41,6 +41,8 @@ start_service() {
 	[ -n "$ttl" ] && procd_append_param command -t "$ttl"
 	[ -n "$mask" ] && procd_append_param command -x "$mask"
 
+	procd_append_param command -s
+
 	procd_set_param respawn
 	procd_set_param stdout 0
 	procd_set_param stderr 0
