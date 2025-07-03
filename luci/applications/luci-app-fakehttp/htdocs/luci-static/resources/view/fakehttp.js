@@ -63,13 +63,16 @@ return view.extend({
         o_enabled.default = '0';
         o_enabled.rmempty = false;
 
-        var o_host = s.option(form.Value, 'host', '用于混淆的主机名 (-h)');
+        var o_host = s.option(form.DynamicList, 'host', '用于混淆的主机名 (-h)',
+            '可以添加多个主机名，每个主机名对应一个 -h 参数，添加多个主机名可轮换混淆');
         o_host.default = 'speedtest.cn';
         o_host.rmempty = false;
 
-        var i = s.option(widgets.DeviceSelect, 'iface', '网络接口名称 (-i)');
+        var i = s.option(widgets.DeviceSelect, 'iface', '网络接口名称 (-i)',
+            '可以添加多个网络接口，每个接口对应一个 -i 参数');
+        i.multiple = true;
         i.rmempty = false;
-        i.nocreate = true;
+        i.nocreate = false;
 
         var mopt = s.option(form.Value, 'mark', 'fwmark 标记 (-m)');
         mopt.datatype = 'uinteger';
