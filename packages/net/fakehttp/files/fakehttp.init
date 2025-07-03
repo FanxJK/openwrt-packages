@@ -17,8 +17,9 @@ start_service() {
 	[ "$enabled" -eq 1 ] || return 1
 
 	# Read list configurations
-	local host_list iface_list
+	local host_list iface_list httpshost_list
 	config_get host_list main host
+	config_get httpshost_list main httpshost
 	config_get iface_list main iface
 	config_get mark main mark
 	config_get num main num
@@ -39,6 +40,13 @@ start_service() {
 	if [ -n "$host_list" ]; then
 		for h in $host_list; do
 			[ -n "$h" ] && procd_append_param command -h "$h"
+		done
+	fi
+
+	# Handle multiple httpshost parameters (-e)
+	if [ -n "$httpshost_list" ]; then
+		for e in $httpshost_list; do
+			[ -n "$e" ] && procd_append_param command -e "$e"
 		done
 	fi
 
