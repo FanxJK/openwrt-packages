@@ -8,11 +8,14 @@ PKG_NAME:=fakehttp
 PKG_VERSION:=0.9.18
 PKG_RELEASE:=1
 
-PKG_SOURCE:=fakehttp-linux-x86_64.tar.gz
+PKG_SOURCE:=fakehttp-linux-$(ARCH).tar.gz
 PKG_SOURCE_URL:=https://github.com/MikeWang000000/FakeHTTP/releases/download/$(PKG_VERSION)/
-PKG_HASH:=0cdbe34277587b3e9ff8117e6130d5db8d716bb9c5143440884a527ed1d5bfc9
 
-PKG_BUILD_DIR:=$(BUILD_DIR)/fakehttp-linux-x86_64
+ifeq ($(ARCH),x86_64)
+  PKG_HASH:=xx
+endif
+
+PKG_BUILD_DIR:=$(BUILD_DIR)/fakehttp-linux-$(ARCH)
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -23,7 +26,7 @@ define Package/fakehttp
 	CATEGORY:=Network
 	TITLE:=FakeHTTP
 	URL:=https://github.com/MikeWang000000/FakeHTTP
-	DEPENDS:=@x86_64 +kmod-nft-queue
+	DEPENDS:= +kmod-nft-queue
 endef
 
 define Package/fakehttp/description
