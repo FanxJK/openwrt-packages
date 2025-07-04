@@ -85,11 +85,12 @@ return view.extend({
         nopt.datatype = 'uinteger';
         nopt.rmempty = true;
 
-        var ropt = s.option(form.Value, 'repeat', '重复生成的数据包 <repeat> 次 (-r)');
+        var ropt = s.option(form.Value, 'repeat', '重复生成的数据包 &lt;repeat&gt; 次 (-r)');
         ropt.datatype = 'uinteger';
         ropt.rmempty = true;
 
-        var topt = s.option(form.Value, 'ttl', '生成数据包的 TTL (-t) 默认为 3');
+        var topt = s.option(form.Value, 'ttl', '生成数据包的 TTL (-t)',
+            '默认为 3');
         topt.datatype = 'uinteger';
         topt.rmempty = true;
 
@@ -97,7 +98,7 @@ return view.extend({
         xopt.datatype = 'uinteger';
         xopt.rmempty = true;
 
-        var yopt = s.option(form.Value, 'pct', '将 TTL 动态提升至估算跃点数的 <pct>% (-y)');
+        var yopt = s.option(form.Value, 'pct', '将 TTL 动态提升至估算跃点数的 &lt;pct&gt;% (-y)');
         yopt.datatype = 'uinteger';
         yopt.rmempty = true;
 
