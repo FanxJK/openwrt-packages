@@ -5,14 +5,14 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=fakehttp
-PKG_VERSION:=0.9.18
+PKG_VERSION:=0.0.1
 PKG_RELEASE:=1
 
 PKG_SOURCE:=fakehttp-linux-$(ARCH).tar.gz
 PKG_SOURCE_URL:=https://github.com/MikeWang000000/FakeHTTP/releases/download/$(PKG_VERSION)/
 
 ifeq ($(ARCH),x86_64)
-  PKG_HASH:=
+  PKG_HASH:=xx
 endif
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/fakehttp-linux-$(ARCH)
