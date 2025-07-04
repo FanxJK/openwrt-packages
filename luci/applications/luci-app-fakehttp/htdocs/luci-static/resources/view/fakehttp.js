@@ -21,7 +21,7 @@ return view.extend({
 
     render: function() {
         var m = new form.Map('fakehttp', 'FakeHTTP',
-            '一个能将所有 TCP 连接混淆为 HTTP 协议的工具。使用 Netfilter Queue (NFQUEUE) 实现。' + '<br />' +
+            'FakeHTTP 可以将你的所有 TCP 连接伪装为 HTTP 等协议以规避深度包检测 (DPI)，是一个基于 nftables / iptables 与 Netfilter Queue (NFQUEUE) 的网络工具。' + '<br />' +
             '用法: <a href="https://github.com/MikeWang000000/FakeHTTP/wiki" target="_blank">https://github.com/MikeWang000000/FakeHTTP/wiki</a>'
         );
 
