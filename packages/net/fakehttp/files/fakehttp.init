@@ -21,11 +21,12 @@ start_service() {
 	config_get host_list main host
 	config_get httpshost_list main httpshost
 	config_get iface_list main iface
-	config_get mark main mark
+	config_get fwmark main fwmark
 	config_get num main num
 	config_get repeat main repeat
 	config_get ttl main ttl
 	config_get mask main mask
+	config_get pct main pct
 
 	# Validate required parameters
 	if [ -z "$iface_list" ]; then
@@ -56,11 +57,12 @@ start_service() {
 			[ -n "$i" ] && procd_append_param command -i "$i"
 		done
 	fi
-	[ -n "$mark" ] && procd_append_param command -m "$mark"
+	[ -n "$fwmark" ] && procd_append_param command -m "$fwmark"
 	[ -n "$num" ] && procd_append_param command -n "$num"
 	[ -n "$repeat" ] && procd_append_param command -r "$repeat"
 	[ -n "$ttl" ] && procd_append_param command -t "$ttl"
 	[ -n "$mask" ] && procd_append_param command -x "$mask"
+	[ -n "$pct" ] && procd_append_param command -y "$pct"
 
 	procd_append_param command -s
 

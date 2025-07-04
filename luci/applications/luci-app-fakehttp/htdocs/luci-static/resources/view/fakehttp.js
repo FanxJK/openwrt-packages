@@ -65,7 +65,7 @@ return view.extend({
 
         var o_host = s.option(form.DynamicList, 'host', '用于混淆的 HTTP 主机名 (-h)',
             '每个主机名对应一个 -h 参数，添加多个主机名可轮换混淆（支持 HTTP 与 HTTPS 共同轮换）');
-        o_host.rmempty = false;
+        o_host.rmempty = true;
 
         var o_httpshost = s.option(form.DynamicList, 'httpshost', '用于混淆的 HTTPS 主机名 (-e)',
             '每个主机名对应一个 -e 参数，添加多个主机名可轮换混淆（支持 HTTP 与 HTTPS 共同轮换）');
@@ -77,25 +77,29 @@ return view.extend({
         i.rmempty = false;
         i.nocreate = false;
 
-        var mopt = s.option(form.Value, 'mark', 'fwmark 标记 (-m)');
+        var mopt = s.option(form.Value, 'fwmark', '用于绕过队列的 fwmark (-m)');
         mopt.datatype = 'uinteger';
         mopt.rmempty = true;
 
-        var nopt = s.option(form.Value, 'num', '队列编号 (-n)');
+        var nopt = s.option(form.Value, 'num', 'Netfilter 队列编号 (-n)');
         nopt.datatype = 'uinteger';
         nopt.rmempty = true;
 
-        var ropt = s.option(form.Value, 'repeat', '重复次数 (-r)');
+        var ropt = s.option(form.Value, 'repeat', '重复生成的数据包 <repeat> 次 (-r)');
         ropt.datatype = 'uinteger';
         ropt.rmempty = true;
 
-        var topt = s.option(form.Value, 'ttl', 'TTL 值 (-t)');
+        var topt = s.option(form.Value, 'ttl', '生成数据包的 TTL (-t) 默认为 3');
         topt.datatype = 'uinteger';
         topt.rmempty = true;
 
-        var xopt = s.option(form.Value, 'mask', 'fwmark 掩码 (-x)');
+        var xopt = s.option(form.Value, 'mask', '设置 fwmark 的掩码 (-x)');
         xopt.datatype = 'uinteger';
         xopt.rmempty = true;
+
+        var yopt = s.option(form.Value, 'pct', '将 TTL 动态提升至估算跃点数的 <pct>% (-y)');
+        yopt.datatype = 'uinteger';
+        yopt.rmempty = true;
 
         return m.render();
     },
