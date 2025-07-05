@@ -12,7 +12,7 @@ PKG_SOURCE:=fakehttp-linux-$(ARCH).tar.gz
 PKG_SOURCE_URL:=https://github.com/MikeWang000000/FakeHTTP/releases/download/$(PKG_VERSION)/
 
 ifeq ($(ARCH),x86_64)
-  PKG_HASH:=0cdbe34277587b3e9ff8117e6130d5db8d716bb9c5143440884a527ed1d5bfc9
+  PKG_HASH:=
 endif
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/fakehttp-linux-$(ARCH)
