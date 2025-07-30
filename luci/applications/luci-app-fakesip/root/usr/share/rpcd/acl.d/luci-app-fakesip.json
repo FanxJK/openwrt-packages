@@ -1,0 +1,22 @@
+{
+  "luci-app-fakesip": {
+    "description": "Grant UCI access for luci-app-fakesip",
+    "read": {
+      "file": {
+        "/var/run/fakesip/*": [ "read" ],
+        "/etc/init.d/fakesip": [ "exec" ]
+      },
+      "ubus": {
+        "service": [ "list" ]
+      },
+      "uci": [ "fakesip" ]
+    },
+    "write": {
+      "uci": [ "fakesip" ]
+    },
+    "exec": {
+      "/etc/init.d/fakesip": [ "start", "stop", "restart", "status" ],
+      "/bin/ps": [ "*" ]
+    }
+  }
+}

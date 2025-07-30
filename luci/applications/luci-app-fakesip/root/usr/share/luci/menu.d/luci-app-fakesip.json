@@ -1,0 +1,12 @@
+{
+  "admin/services/fakesip": {
+    "title": "FakeSIP",
+    "action": {
+      "type": "view",
+      "path": "fakesip"
+    },
+    "depends": {
+        "acl": [ "luci-app-fakesip" ]
+    }
+  }
+} 

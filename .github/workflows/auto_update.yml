@@ -56,8 +56,13 @@ jobs:
         if [ -n "$(git status packages/net/fakehttp/Makefile --porcelain)" ]; then
           FAKEHTTP_CHANGES="fakehttp to $(awk -F "PKG_VERSION:=" '{print $2}' "packages/net/fakehttp/Makefile" | xargs)"
         fi
+
+        FAKESIP_CHANGES=""
+        if [ -n "$(git status packages/net/fakesip/Makefile --porcelain)" ]; then
+          FAKESIP_CHANGES="fakesip to $(awk -F "PKG_VERSION:=" '{print $2}' "packages/net/fakesip/Makefile" | xargs)"
+        fi
         
-        if [ -n "$UU_CHANGES" ] || [ -n "$SUBMODULE_CHANGES" ] || [ -n "$FAKEHTTP_CHANGES" ]; then
+        if [ -n "$UU_CHANGES" ] || [ -n "$SUBMODULE_CHANGES" ] || [ -n "$FAKEHTTP_CHANGES" ] || [ -n "$FAKESIP_CHANGES" ]; then
           COMMIT_MSG="Update: "
           if [ -n "$UU_CHANGES" ]; then
             COMMIT_MSG+="$UU_CHANGES"
@@ -73,6 +78,13 @@ jobs:
             [ -n "$SUBMODULE_CHANGES" ] && COMMIT_MSG+=" and "
             COMMIT_MSG+="$FAKEHTTP_CHANGES"
             git add packages/net/fakehttp/Makefile
+          fi
+          if [ -n "$FAKESIP_CHANGES" ]; then
+            [ -n "$UU_CHANGES" ] && COMMIT_MSG+=" and "
+            [ -n "$SUBMODULE_CHANGES" ] && COMMIT_MSG+=" and "
+            [ -n "$FAKEHTTP_CHANGES" ] && COMMIT_MSG+=" and "
+            COMMIT_MSG+="$FAKESIP_CHANGES"
+            git add packages/net/fakesip/Makefile
           fi
           git commit -m "$COMMIT_MSG"
           git push

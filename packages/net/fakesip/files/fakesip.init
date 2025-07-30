@@ -1,0 +1,80 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2025
+
+START=99
+STOP=10
+
+USE_PROCD=1
+
+NAME=fakesip
+PROG=/usr/bin/fakesip
+
+start_service() {
+	config_load fakesip
+	config_get_bool enabled main enabled 0
+
+	# Check if service is enabled
+	[ "$enabled" -eq 1 ] || return 1
+
+	# Read list configurations
+	local host_list iface_list
+	config_get host_list main host
+	config_get iface_list main iface
+	config_get fwmark main fwmark
+	config_get num main num
+	config_get repeat main repeat
+	config_get ttl main ttl
+	config_get mask main mask
+	config_get pct main pct
+
+	# Validate required parameters
+	if [ -z "$iface_list" ]; then
+		echo "Error: Network interface (iface) is required"
+		return 1
+	fi
+
+	procd_open_instance
+	procd_set_param command /usr/bin/fakesip
+
+	# Handle multiple interface parameters (-i)
+	if [ -n "$iface_list" ]; then
+		for i in $iface_list; do
+			[ -n "$i" ] && procd_append_param command -i "$i"
+		done
+	fi
+	
+	# Handle multiple host parameters (-u)
+	if [ -n "$host_list" ]; then
+		for h in $host_list; do
+			[ -n "$h" ] && procd_append_param command -u "$h"
+		done
+	fi
+
+	[ -n "$fwmark" ] && procd_append_param command -m "$fwmark"
+	[ -n "$num" ] && procd_append_param command -n "$num"
+	[ -n "$repeat" ] && procd_append_param command -r "$repeat"
+	[ -n "$ttl" ] && procd_append_param command -t "$ttl"
+	[ -n "$mask" ] && procd_append_param command -x "$mask"
+	[ -n "$pct" ] && procd_append_param command -y "$pct"
+
+	procd_append_param command -s
+
+	procd_set_param respawn
+	procd_set_param stdout 0
+	procd_set_param stderr 0
+
+	procd_close_instance
+}
+
+stop_service() {
+	procd_kill fakesip
+}
+
+reload_service() {
+	stop
+	start
+}
+
+service_triggers() {
+	procd_add_reload_trigger "fakesip"
+}

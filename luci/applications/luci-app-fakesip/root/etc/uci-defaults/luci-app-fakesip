@@ -1,0 +1,12 @@
+#!/bin/sh
+
+uci -q batch <<-EOF >/dev/null
+	delete ucitrack.@fakesip[-1]
+	add ucitrack fakesip
+	set ucitrack.@fakesip[-1].init=fakesip
+	commit ucitrack
+EOF
+
+rm -f /tmp/luci-indexcache
+exit 0
+
