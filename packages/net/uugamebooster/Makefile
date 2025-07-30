@@ -25,6 +25,12 @@ PKG_MAINTAINER:=Tianling Shen <cnsztl@immortalwrt.org>
 
 include $(INCLUDE_DIR)/package.mk
 
+define Download/uugamebooster
+  FILE:=$(PKG_SOURCE)
+  URL:=$(PKG_SOURCE_URL)
+  HASH:=$(PKG_HASH)
+endef
+
 STRIP:=true
 
 TAR_CMD=$(HOST_TAR) -C $(1)/ $(TAR_OPTIONS)
