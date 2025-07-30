@@ -25,6 +25,12 @@ PKG_MAINTAINER:=Tianling Shen <cnsztl@immortalwrt.org>
 
 include $(INCLUDE_DIR)/package.mk
 
+define Download/uugamebooster
+  FILE:=$(PKG_SOURCE)
+  URL:=$(PKG_SOURCE_URL)
+  HASH:=$(PKG_HASH)
+endef
+
 define Package/uugamebooster
   SECTION:=net
   CATEGORY:=Network
@@ -58,4 +64,5 @@ define Package/uugamebooster/install
 	$(INSTALL_BIN) ./files/uugamebooster.init $(1)/etc/init.d/uugamebooster
 endef
 
+$(eval $(call Download,uugamebooster))
 $(eval $(call BuildPackage,uugamebooster))
