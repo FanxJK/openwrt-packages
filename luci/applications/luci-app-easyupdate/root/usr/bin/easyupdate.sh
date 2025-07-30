@@ -29,8 +29,22 @@ EOF
 }
 
 function fetchReleaseData() {
-	# 如果缓存文件不存在或已超过10分钟，则重新获取
+	local need_fetch=0
+
+	# 检查缓存文件是否存在或已超过10分钟
 	if [ ! -f "/tmp/release_info.json" ] || [ $(( $(date +%s) - $(date -r /tmp/release_info.json +%s) )) -gt 600 ]; then
+		need_fetch=1
+	fi
+
+	# 检查现有缓存是否包含API错误信息
+	if [ -f "/tmp/release_info.json" ]; then
+		if grep -q '"message":' /tmp/release_info.json 2>/dev/null; then
+			need_fetch=1
+		fi
+	fi
+
+	# 如果需要获取新数据
+	if [ "$need_fetch" -eq 1 ]; then
 		github=$(uci get easyupdate.main.github)
 		github=(${github//// })
 		curl -s "https://api.github.com/repos/${github[2]}/${github[3]}/releases/latest" > /tmp/release_info.json
@@ -46,15 +60,22 @@ function getCloudVer() {
 function getReleaseInfo() {
 	checkEnv
 	fetchReleaseData
-	
-	# 获取版本号
-	local version=$(cat /tmp/release_info.json | jsonfilter -e '@.tag_name')
-	
-	# 将body内容单独保存到文件中
-	cat /tmp/release_info.json | jsonfilter -e '@.body' > /tmp/release_body.txt
-	
-	# 只输出版本号
-	echo "$version"
+
+	# 检查是否存在API错误信息
+	if grep -q '"message":' /tmp/release_info.json 2>/dev/null; then
+		# 如果遇到API限制，使用message作为body内容
+		local message=$(cat /tmp/release_info.json | jsonfilter -e '@.message' 2>/dev/null || echo "API访问受限")
+		echo "$message" > /tmp/release_body.txt
+	else
+		# 正常情况下获取版本号和body
+		local version=$(cat /tmp/release_info.json | jsonfilter -e '@.tag_name')
+
+		# 将body内容单独保存到文件中
+		cat /tmp/release_info.json | jsonfilter -e '@.body' > /tmp/release_body.txt
+
+		# 只输出版本号
+		echo "$version"
+	fi
 }
 
 function downCloudVer() {
