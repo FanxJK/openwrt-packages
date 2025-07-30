@@ -62,4 +62,5 @@ define Package/uugamebooster/install
 	$(INSTALL_BIN) ./files/uugamebooster.init $(1)/etc/init.d/uugamebooster
 endef
 
+$(eval $(call Download,uugamebooster))
 $(eval $(call BuildPackage,uugamebooster))
