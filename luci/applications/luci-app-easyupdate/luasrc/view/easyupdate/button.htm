@@ -143,34 +143,46 @@ function getver() {
             
             if (data && cloudver) {
                 if (data.newver) {
-                    cloudver.innerHTML = '<%:Cloud Firmware Version%>: ' + data.newver;
-                    
-                    // 显示release notes
-                    if (data.body) {
-                        document.getElementById('release_body').innerHTML = data.body;
-                    }
-                    
-                    let year, month, day;
-                    const nowver = "<%=self.versions%>";
-                    if (nowver.indexOf("rc") > -1) {
-                        const parts = nowver.split("-")[2].split(".");
-                        year = parts[0];
-                        month = parts[1];
-                        day = parts[2];
+                    // 检查是否为API检查失败
+                    if (data.newver === 'API Check Failed') {
+                        cloudver.innerHTML = '<%:Cloud Firmware Version%>: <%:API Check Failed%>';
+                        up.value = '<%:Retry Firmware Check%>';
+                        up.disabled = false;
+
+                        // 显示API错误信息
+                        if (data.body) {
+                            document.getElementById('release_body').innerHTML = data.body;
+                        }
                     } else {
-                        const parts = nowver.split("-")[1].split(".");
-                        year = parts[0];
-                        month = parts[1];
-                        day = parts[2];
-                    }
-                    const nowverint = Math.floor(new Date(year, month - 1, day).getTime() / 1000);
-                    if (data.newverint > nowverint){
-                        up.value = '<%:Download Firmware%>'
-                        up.disabled = false
-                        up.setAttribute('newver', data.newver);
-                    }else{
-                        up.value = '<%:Is the latest%>'
-                        up.disabled = true
+                        cloudver.innerHTML = '<%:Cloud Firmware Version%>: ' + data.newver;
+
+                        // 显示release notes
+                        if (data.body) {
+                            document.getElementById('release_body').innerHTML = data.body;
+                        }
+
+                        let year, month, day;
+                        const nowver = "<%=self.versions%>";
+                        if (nowver.indexOf("rc") > -1) {
+                            const parts = nowver.split("-")[2].split(".");
+                            year = parts[0];
+                            month = parts[1];
+                            day = parts[2];
+                        } else {
+                            const parts = nowver.split("-")[1].split(".");
+                            year = parts[0];
+                            month = parts[1];
+                            day = parts[2];
+                        }
+                        const nowverint = Math.floor(new Date(year, month - 1, day).getTime() / 1000);
+                        if (data.newverint > nowverint){
+                            up.value = '<%:Download Firmware%>'
+                            up.disabled = false
+                            up.setAttribute('newver', data.newver);
+                        }else{
+                            up.value = '<%:Is the latest%>'
+                            up.disabled = true
+                        }
                     }
                 }else{
                     cloudver.innerHTML = '<%:Cloud Firmware Version%>:<%:Collecting data...%>';

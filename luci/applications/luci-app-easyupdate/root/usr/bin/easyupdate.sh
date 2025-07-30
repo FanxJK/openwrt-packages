@@ -66,6 +66,7 @@ function getReleaseInfo() {
 		# 如果遇到API限制，使用message作为body内容
 		local message=$(cat /tmp/release_info.json | jsonfilter -e '@.message' 2>/dev/null || echo "API访问受限")
 		echo "$message" > /tmp/release_body.txt
+		echo "API Check Failed"
 	else
 		# 正常情况下获取版本号和body
 		local version=$(cat /tmp/release_info.json | jsonfilter -e '@.tag_name')

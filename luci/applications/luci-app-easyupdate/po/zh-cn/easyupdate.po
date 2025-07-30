@@ -98,7 +98,7 @@ msgid "Firmware Check Failed"
 msgstr "固件检查失败"
 
 msgid "API Check Failed"
-msgstr "API检查失败"
+msgstr "API 检查失败"
 
 msgid "The firmware is being upgraded, please wait..."
 msgstr "固件正在升级中，请稍候..."
