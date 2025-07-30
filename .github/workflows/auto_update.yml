@@ -35,6 +35,11 @@ jobs:
       run: |
         cd packages/net/fakehttp
         ./update.sh
+    
+    - name: fakesip auto update
+      run: |
+        cd packages/net/fakesip
+        ./update.sh
 
     - name: Commit update
       run: |
