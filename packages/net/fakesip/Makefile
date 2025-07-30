@@ -5,14 +5,14 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=fakesip
-PKG_VERSION:=0.0.1
+PKG_VERSION:=0.9.1
 PKG_RELEASE:=1
 
 PKG_SOURCE:=fakesip-linux-$(ARCH).tar.gz
 PKG_SOURCE_URL:=https://github.com/MikeWang000000/FakeSIP/releases/download/$(PKG_VERSION)/
 
 ifeq ($(ARCH),x86_64)
-  PKG_HASH:=xx
+  PKG_HASH:=6ce77024df6ff24eaa211ca08b51a74dedf32aa21d02feb4b99a4565e49fa5b3
 endif
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/fakesip-linux-$(ARCH)
