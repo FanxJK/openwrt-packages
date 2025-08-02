@@ -43,55 +43,69 @@ jobs:
 
     - name: Commit update
       run: |
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        set -euo pipefail
+
+        git config user.name 'github-actions[bot]'
+        git config user.email 'github-actions[bot]@users.noreply.github.com'
         git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-        
-        UU_CHANGES=""
-        if [ -n "$(git status packages/net/uugamebooster/Makefile --porcelain)" ]; then
-          UU_CHANGES="uugamebooster to $(awk -F "PKG_VERSION:=" '{print $2}' "packages/net/uugamebooster/Makefile" | xargs)"
-        fi
-        
-        SUBMODULE_CHANGES=""
-        if [ -n "$(git status luci/applications/luci-app-easytier --porcelain)" ]; then
-          SUBMODULE_CHANGES="Submodule luci-app-easytier to $(git submodule status luci/applications/luci-app-easytier | awk '{print $1}')"
-        fi
-        
-        FAKEHTTP_CHANGES=""
-        if [ -n "$(git status packages/net/fakehttp/Makefile --porcelain)" ]; then
-          FAKEHTTP_CHANGES="fakehttp to $(awk -F "PKG_VERSION:=" '{print $2}' "packages/net/fakehttp/Makefile" | xargs)"
+
+        changed() {
+          git status --porcelain -- "$1" | grep -q .
+        }
+
+        pkg_version_from_makefile() {
+          awk -F 'PKG_VERSION:=' '/^PKG_VERSION:=/{print $2}' "$1" | xargs
+        }
+
+        submodule_short_sha() {
+          local path="$1"
+          git -C "$path" rev-parse --short HEAD 2>/dev/null || \
+          git submodule status -- "$path" | awk '{print $1}' | sed 's/^[-+ ]//'
+        }
+
+        join_by() {
+          local sep="$1"; shift
+          [ "$#" -gt 0 ] || { printf ''; return; }
+          local out="$1"; shift || true
+          for x in "$@"; do out="${out}${sep}${x}"; done
+          printf '%s' "$out"
+        }
+
+        segments=()
+
+        if changed "packages/net/uugamebooster/Makefile"; then
+          ver="$(pkg_version_from_makefile "packages/net/uugamebooster/Makefile" || true)"
+          segments+=("uugamebooster to ${ver:-<unknown>}")
+          git add "packages/net/uugamebooster/Makefile"
         fi
 
-        FAKESIP_CHANGES=""
-        if [ -n "$(git status packages/net/fakesip/Makefile --porcelain)" ]; then
-          FAKESIP_CHANGES="fakesip to $(awk -F "PKG_VERSION:=" '{print $2}' "packages/net/fakesip/Makefile" | xargs)"
+        if changed "luci/applications/luci-app-easytier"; then
+          sha="$(submodule_short_sha "luci/applications/luci-app-easytier" || true)"
+          segments+=("Submodule luci-app-easytier to ${sha:-<unknown>}")
+          git add ".gitmodules" "luci/applications/luci-app-easytier"
         fi
-        
-        if [ -n "$UU_CHANGES" ] || [ -n "$SUBMODULE_CHANGES" ] || [ -n "$FAKEHTTP_CHANGES" ] || [ -n "$FAKESIP_CHANGES" ]; then
-          COMMIT_MSG="Update: "
-          if [ -n "$UU_CHANGES" ]; then
-            COMMIT_MSG+="$UU_CHANGES"
-            git add packages/net/uugamebooster/Makefile
-          fi
-          if [ -n "$SUBMODULE_CHANGES" ]; then
-            [ -n "$UU_CHANGES" ] && COMMIT_MSG+=" and "
-            COMMIT_MSG+="$SUBMODULE_CHANGES"
-            git add .gitmodules luci/applications/luci-app-easytier
-          fi
-          if [ -n "$FAKEHTTP_CHANGES" ]; then
-            [ -n "$UU_CHANGES" ] && COMMIT_MSG+=" and "
-            [ -n "$SUBMODULE_CHANGES" ] && COMMIT_MSG+=" and "
-            COMMIT_MSG+="$FAKEHTTP_CHANGES"
-            git add packages/net/fakehttp/Makefile
-          fi
-          if [ -n "$FAKESIP_CHANGES" ]; then
-            [ -n "$UU_CHANGES" ] && COMMIT_MSG+=" and "
-            [ -n "$SUBMODULE_CHANGES" ] && COMMIT_MSG+=" and "
-            [ -n "$FAKEHTTP_CHANGES" ] && COMMIT_MSG+=" and "
-            COMMIT_MSG+="$FAKESIP_CHANGES"
-            git add packages/net/fakesip/Makefile
-          fi
-          git commit -m "$COMMIT_MSG"
+
+        if changed "luci/applications/luci-app-netspeedtest"; then
+          sha="$(submodule_short_sha "luci/applications/luci-app-netspeedtest" || true)"
+          segments+=("Submodule luci-app-netspeedtest to ${sha:-<unknown>}")
+          git add ".gitmodules" "luci/applications/luci-app-netspeedtest"
+        fi
+
+        if changed "packages/net/fakehttp/Makefile"; then
+          ver="$(pkg_version_from_makefile "packages/net/fakehttp/Makefile" || true)"
+          segments+=("fakehttp to ${ver:-<unknown>}")
+          git add "packages/net/fakehttp/Makefile"
+        fi
+
+        if changed "packages/net/fakesip/Makefile"; then
+          ver="$(pkg_version_from_makefile "packages/net/fakesip/Makefile" || true)"
+          segments+=("fakesip to ${ver:-<unknown>}")
+          git add "packages/net/fakesip/Makefile"
+        fi
+
+        if [ "${#segments[@]}" -gt 0 ]; then
+          commit_msg="Update: $(join_by ' and ' "${segments[@]}")"
+          git commit -m "$commit_msg"
           git push
         fi
 
