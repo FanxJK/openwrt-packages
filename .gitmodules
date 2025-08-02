@@ -1,6 +1,0 @@
-[submodule "luci/applications/luci-app-easytier"]
-	path = luci/applications/luci-app-easytier
-	url = https://github.com/EasyTier/luci-app-easytier.git
-[submodule "luci/applications/luci-app-netspeedtest"]
-	path = luci/applications/luci-app-netspeedtest
-	url = https://github.com/sirpdboy/luci-app-netspeedtest.git
