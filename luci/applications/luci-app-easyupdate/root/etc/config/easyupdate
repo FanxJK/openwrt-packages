@@ -1,2 +1,5 @@
 config easyupdate 'main'
-	option enable '0'
+	option mirror ''
+	option keepconfig '1'
+	option forceflash '0'
+	option github 'https://github.com/FanxJK/OpenWrt-x86_64-Actions'

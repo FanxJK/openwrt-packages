@@ -127,17 +127,18 @@ function getver() {
         function(x, data) {
             const cloudver = document.getElementById('cloudver');
             const up = document.getElementById('update');
+			let hasSavedFirmware = false;
             
             // 检查localStorage中是否有之前下载好的固件信息
             try {
                 const savedFirmware = localStorage.getItem('firmware_ready');
                 if (savedFirmware) {
                     // 如果有，直接显示固件升级按钮
+					hasSavedFirmware = true;
                     up.value = '<%:Firmware Upgrade%>';
                     up.setAttribute('flash', 1);
                     up.setAttribute('file', savedFirmware);
                     up.disabled = false;
-                    return; // 跳过后续检查
                 }
             } catch(e) {}
             
@@ -146,8 +147,10 @@ function getver() {
                     // 检查是否为API检查失败
                     if (data.newver === 'API Check Failed') {
                         cloudver.innerHTML = '<%:Cloud Firmware Version%>: <%:API Check Failed%>';
-                        up.value = '<%:Retry Firmware Check%>';
-                        up.disabled = false;
+						if (!hasSavedFirmware) {
+							up.value = '<%:Retry Firmware Check%>';
+							up.disabled = false;
+						}
 
                         // 显示API错误信息
                         if (data.body) {
@@ -176,28 +179,44 @@ function getver() {
                         }
                         const nowverint = Math.floor(new Date(year, month - 1, day).getTime() / 1000);
                         if (data.newverint > nowverint){
-                            up.value = '<%:Download Firmware%>'
-                            up.disabled = false
-                            up.setAttribute('newver', data.newver);
+							if (!hasSavedFirmware) {
+								up.value = '<%:Download Firmware%>'
+								up.disabled = false
+								up.setAttribute('newver', data.newver);
+							}
                         }else{
-                            up.value = '<%:Is the latest%>'
-                            up.disabled = true
+							if (!hasSavedFirmware) {
+								up.value = '<%:Is the latest%>'
+								up.disabled = true
+							}
                         }
                     }
                 }else{
                     cloudver.innerHTML = '<%:Cloud Firmware Version%>:<%:Collecting data...%>';
-                    up.value = '<%:Retry Firmware Check%>'
-                    up.disabled = false
+					if (!hasSavedFirmware) {
+						up.value = '<%:Retry Firmware Check%>'
+						up.disabled = false
+					}
                 }
             }
         }
     );
 	XHR.get('<%=url([[admin]], [[services]], [[easyupdate]], [[check]])%>', {file: ''}, (x, r) => {
-		if (r.code == 1 && r.data.indexOf("OK") > -1) {
-			const tb = document.getElementById('update');
-			tb.setAttribute('file', r.data.slice(0,r.data.indexOf(".img.gz")) + ".img.gz");
+		const tb = document.getElementById('update');
+		const checkedFile = r && r.file ? String(r.file).trim() : '';
+		if (r && r.code == 1 && r.data && r.data.indexOf("OK") > -1 && checkedFile) {
+			tb.setAttribute('file', checkedFile);
 			tb.value = '<%:Firmware Upgrade%>'
 			tb.setAttribute('flash', 1);
+			tb.removeAttribute('newver');
+			tb.disabled = false;
+			try {
+				localStorage.setItem('firmware_ready', checkedFile);
+			} catch(e) {}
+		} else {
+			clearFirmwareCache();
+			tb.removeAttribute('flash');
+			tb.removeAttribute('file');
 		}
 	});
 }
@@ -210,14 +229,32 @@ function clearFirmwareCache() {
     } catch(e) {}
 }
 
+function cleanupTempFiles(scope, callback) {
+	XHR.get('<%=url([[admin]], [[services]], [[easyupdate]], [[cleanup]])%>', {scope: scope || 'all'}, () => {
+		if (typeof callback === 'function') {
+			callback();
+		}
+	});
+}
+
 function check_version() {
     const tb = document.getElementById('update');
-    const flash= tb.getAttribute("flash")
-    if (flash){
-        // 显示升级弹窗
-        showUpgradeOverlay();
-        
-        XHR.get('<%=url([[admin]], [[services]], [[easyupdate]], [[flash]])%>', {file: tb.getAttribute("file")}, (x, r) => {
+	    const flash= tb.getAttribute("flash")
+	    if (flash){
+			const firmwareFile = tb.getAttribute('file');
+			if (!firmwareFile || !/^[A-Za-z0-9._-]+\.img\.gz$/.test(firmwareFile)) {
+				clearFirmwareCache();
+				tb.removeAttribute('flash');
+				tb.removeAttribute('file');
+				tb.disabled = false;
+				tb.value = '<%:Retry Firmware Download%>';
+				update_log_content((document.getElementById('log_content').value || '') + "\n缓存的固件文件名无效，请重新下载。");
+				return;
+			}
+	        // 显示升级弹窗
+	        showUpgradeOverlay();
+	        
+	        XHR.get('<%=url([[admin]], [[services]], [[easyupdate]], [[flash]])%>', {file: firmwareFile}, (x, r) => {
             if (r.code == 1) {
                 // 清除缓存，因为固件正在刷入
                 clearFirmwareCache();
@@ -251,11 +288,11 @@ function check_version() {
         clearFirmwareCache();
         tb.disabled = true;
         tb.value = '<%:Downloading...%>';
-        XHR.get('<%=url([[admin]], [[services]], [[easyupdate]], [[download]])%>', null, (x, r) => {
+		cleanupTempFiles('download', () => XHR.get('<%=url([[admin]], [[services]], [[easyupdate]], [[download]])%>', null, (x, r) => {
             if (r.code == 1) {
-				// 添加调试日志
-				let logContent = document.getElementById('log_content').value || "";
-				logContent += "\n下载响应: " + JSON.stringify(r);
+					// 添加调试日志
+					let logContent = document.getElementById('log_content').value || "";
+					logContent += "\n下载响应: " + JSON.stringify(r);
 				update_log_content(logContent);
 				
 				// 确保文件名有效
@@ -277,56 +314,52 @@ function check_version() {
                         clearFirmwareCache(); // 下载错误时清除缓存
                         tb.disabled = false;
                         tb.value = '<%:Retry Firmware Download%>';
-                    }else{
-                        if (/100\s.+M\s+100.+--:--:--/.test(r.data)){
-							XHR.halt();
-							// 添加进度显示
-							tb.value = '<%:Download Complete%>';
-							let completeLog = document.getElementById('log_content').value + "\n\n固件下载完成，等待系统处理文件...";
-							completeLog += "\n当前文件名: " + tb.getAttribute('file');
-							update_log_content(completeLog);
-							
-							// 延迟检查，确保文件已完全写入
-							setTimeout(() => {
-								tb.value = '<%:Waiting for file sync...%>';
-								update_log_content(document.getElementById('log_content').value + "\n正在等待文件系统同步...");
-								
-								// 再次延迟，确保文件系统已同步
-								setTimeout(() => {
-									tb.value = '<%:Checking firmware...%>';
-									// 再次验证文件名
-									let filename = tb.getAttribute('file');
-									if (!filename || filename === 'undefined') {
-										let errLog = document.getElementById('log_content').value + "\n错误: 文件名无效 (" + filename + ")";
-										update_log_content(errLog);
-										
-										// 尝试从日志中提取文件名
-										let logContent = document.getElementById('log_content').value || "";
-										let match = logContent.match(/immortalwrt[a-zA-Z0-9._-]+\.img\.gz/);
-										if (match) {
-											filename = match[0];
-											tb.setAttribute('file', filename);
-											update_log_content(errLog + "\n已从日志中提取文件名: " + filename);
-										} else {
-											tb.disabled = false;
-											tb.value = '<%:Retry Firmware Download%>';
-											update_log_content(errLog + "\n无法恢复文件名，请重试下载");
-											return;
-										}
+	                    }else{
+	                        if (/100\s.+M\s+100.+--:--:--/.test(r.data)){
+								XHR.halt();
+								// 添加进度显示
+								tb.value = '<%:Checking firmware...%>';
+								let completeLog = document.getElementById('log_content').value + "\n\n固件下载完成，开始校验固件...";
+								completeLog += "\n当前文件名: " + tb.getAttribute('file');
+								update_log_content(completeLog);
+
+								// 再次验证文件名
+								let filename = tb.getAttribute('file');
+								if (!filename || filename === 'undefined') {
+									let errLog = document.getElementById('log_content').value + "\n错误: 文件名无效 (" + filename + ")";
+									update_log_content(errLog);
+
+									// 尝试从日志中提取文件名
+									let logContent = document.getElementById('log_content').value || "";
+									let match = logContent.match(/(?:immortalwrt|openwrt)[a-zA-Z0-9._-]+\.img\.gz/);
+									if (match) {
+										filename = match[0];
+										tb.setAttribute('file', filename);
+										update_log_content(errLog + "\n已从日志中提取文件名: " + filename);
+									} else {
+										tb.disabled = false;
+										tb.value = '<%:Retry Firmware Download%>';
+										update_log_content(errLog + "\n无法恢复文件名，请重试下载");
+										return;
 									}
-									checkFirmware(tb);
-								}, 5000);
-							}, 3000);
-                        }
-                    }
-                })
+								}
+								checkFirmware(tb);
+	                        }
+	                    }
+	                })
             } else {
                 tb.disabled = false;
                 tb.value = '<%:Retry Firmware Download%>';
             }
-        });
+		}));
     }else{
-        getver()
+		tb.disabled = true;
+		tb.value = '<%:Collecting data...%>';
+		clearFirmwareCache();
+		tb.removeAttribute('newver');
+		tb.removeAttribute('flash');
+		tb.removeAttribute('file');
+		cleanupTempFiles('check', () => getver());
     }
 }
 
@@ -340,23 +373,27 @@ function checkFirmware(tb, retryCount = 0) {
 	logContent += "\n正在检查固件完整性，尝试 " + (retryCount + 1) + "/" + (maxRetries + 1) + "...";
 	update_log_content(logContent);
 	
-	XHR.get('<%=url([[admin]], [[services]], [[easyupdate]], [[check]])%>', {file: tb.getAttribute("file")}, (x, r) => {
-		if (r && r.code == 1) {
-			// 将校验结果添加到日志
+		XHR.get('<%=url([[admin]], [[services]], [[easyupdate]], [[check]])%>', {file: tb.getAttribute("file")}, (x, r) => {
+			if (r && r.code == 1) {
+				// 将校验结果添加到日志
 			logContent = document.getElementById('log_content').value || "";
 			logContent += "\n" + r.data;
 			update_log_content(logContent);
 			
-			if (r.data && r.data.indexOf("OK") > -1) {
-				// 下载和检查完成后立即更新按钮状态
-				tb.value = '<%:Firmware Upgrade%>';
-				tb.setAttribute('flash', 1);
-				tb.disabled = false;
+				if (r.data && r.data.indexOf("OK") > -1) {
+					const checkedFile = r.file ? String(r.file).trim() : tb.getAttribute("file");
+					if (checkedFile) {
+						tb.setAttribute('file', checkedFile);
+					}
+					// 下载和检查完成后立即更新按钮状态
+					tb.value = '<%:Firmware Upgrade%>';
+					tb.setAttribute('flash', 1);
+					tb.disabled = false;
 				
-				// 记录成功状态到localStorage，以便刷新页面时恢复
-				try {
-					localStorage.setItem('firmware_ready', tb.getAttribute("file"));
-				} catch(e) {}
+					// 记录成功状态到localStorage，以便刷新页面时恢复
+					try {
+						localStorage.setItem('firmware_ready', tb.getAttribute("file"));
+					} catch(e) {}
 				
 				logContent = document.getElementById('log_content').value || "";
 				logContent += "\n固件校验成功，可以点击升级按钮刷写固件。";
@@ -384,11 +421,11 @@ function checkFirmware(tb, retryCount = 0) {
 					tb.value = '<%:Firmware Check Failed%>';
 					tb.disabled = false;
 					
-					// 添加错误详情到日志
-					logContent = document.getElementById('log_content').value || "";
-					logContent += "\n\n固件校验失败！请查看 /tmp/easyupdatemain.log 获取更多信息。";
-					logContent += "\n如果您确认下载完成，可以尝试刷新页面后再检查。";
-					update_log_content(logContent);
+						// 添加错误详情到日志
+						logContent = document.getElementById('log_content').value || "";
+						logContent += "\n\n固件校验失败！请查看 /tmp/easyupdate/main.log 获取更多信息。";
+						logContent += "\n如果您确认下载完成，可以尝试刷新页面后再检查。";
+						update_log_content(logContent);
 					
 					setTimeout(() => {
 						tb.value = '<%:Retry Firmware Download%>';
