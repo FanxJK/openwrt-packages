@@ -1,9 +1,11 @@
 {
   "luci-app-fakesip": {
-    "description": "Grant UCI access for luci-app-fakesip",
+    "description": "Grant UCI and payload file access for luci-app-fakesip",
     "read": {
       "file": {
         "/var/run/fakesip/*": [ "read" ],
+        "/etc/fakesip/payloads": [ "list" ],
+        "/etc/fakesip/payloads/*": [ "list", "read" ],
         "/etc/init.d/fakesip": [ "exec" ]
       },
       "ubus": {
@@ -12,7 +14,10 @@
       "uci": [ "fakesip" ]
     },
     "write": {
-      "uci": [ "fakesip" ]
+      "uci": [ "fakesip" ],
+      "file": {
+        "/etc/fakesip/payloads/*": [ "write" ]
+      }
     },
     "exec": {
       "/etc/init.d/fakesip": [ "start", "stop", "restart", "status" ],

@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=fakehttp
 PKG_VERSION:=0.9.18
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_SOURCE:=fakehttp-linux-$(ARCH).tar.gz
 PKG_SOURCE_URL:=https://github.com/MikeWang000000/FakeHTTP/releases/download/$(PKG_VERSION)/

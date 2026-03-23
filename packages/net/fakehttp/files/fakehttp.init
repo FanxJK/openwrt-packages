@@ -45,7 +45,8 @@ start_service() {
 	[ "$enabled" -eq 1 ] || return 1
 
 	# Read list configurations
-	local host_list iface_list httpshost_list payload_file payload_path
+	local mode host_list iface_list httpshost_list payload_file payload_path
+	config_get mode main mode
 	config_get host_list main host
 	config_get httpshost_list main httpshost
 	config_get payload_file main payload_file
@@ -63,12 +64,22 @@ start_service() {
 		return 1
 	fi
 
-	if [ -n "$payload_file" ]; then
-		if [ -n "$host_list" ] || [ -n "$httpshost_list" ]; then
-			echo "Error: -b cannot be used together with -h or -e"
+	if [ -z "$mode" ]; then
+		if [ -n "$payload_file" ]; then
+			mode="payload"
+		else
+			mode="host"
+		fi
+	fi
+
+	case "$mode" in
+	host)
+		if [ -z "$host_list" ] && [ -z "$httpshost_list" ]; then
+			echo "Error: At least one -h or -e value is required in host mode"
 			return 1
 		fi
-
+	;;
+	payload)
 		payload_path="$(resolve_payload_path "$payload_file")" || {
 			echo "Error: payload_file must be a file name or a path under $PAYLOAD_DIR"
 			return 1
@@ -78,26 +89,36 @@ start_service() {
 			echo "Error: payload file not found: $payload_path"
 			return 1
 		fi
-	fi
+	;;
+	*)
+		echo "Error: Invalid mode: $mode"
+		return 1
+	;;
+	esac
 
 	procd_open_instance
 	procd_set_param command /usr/bin/fakehttp
 
-	[ -n "$payload_path" ] && procd_append_param command -b "$payload_path"
+	case "$mode" in
+	payload)
+		procd_append_param command -b "$payload_path"
+	;;
+	host)
+		# Handle multiple host parameters (-h)
+		if [ -n "$host_list" ]; then
+			for h in $host_list; do
+				[ -n "$h" ] && procd_append_param command -h "$h"
+			done
+		fi
 
-	# Handle multiple host parameters (-h)
-	if [ -n "$host_list" ]; then
-		for h in $host_list; do
-			[ -n "$h" ] && procd_append_param command -h "$h"
-		done
-	fi
-
-	# Handle multiple httpshost parameters (-e)
-	if [ -n "$httpshost_list" ]; then
-		for e in $httpshost_list; do
-			[ -n "$e" ] && procd_append_param command -e "$e"
-		done
-	fi
+		# Handle multiple httpshost parameters (-e)
+		if [ -n "$httpshost_list" ]; then
+			for e in $httpshost_list; do
+				[ -n "$e" ] && procd_append_param command -e "$e"
+			done
+		fi
+	;;
+	esac
 
 	# Handle multiple interface parameters (-i)
 	if [ -n "$iface_list" ]; then

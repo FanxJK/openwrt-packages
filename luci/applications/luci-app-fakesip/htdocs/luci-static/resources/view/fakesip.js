@@ -43,6 +43,27 @@ function getOptionValue(config, option, sectionId) {
 	return value;
 }
 
+function inferMode(config, sectionId, fallbackMode) {
+	var configuredMode = normalizeValue(uci.get(config, sectionId, 'mode'));
+
+	if (configuredMode)
+		return configuredMode;
+
+	return normalizeValue(uci.get(config, sectionId, 'payload_file')) ? 'payload' : fallbackMode;
+}
+
+function normalizePayloadValue(value, payloadDir) {
+	value = normalizeValue(value);
+
+	if (!value)
+		return '';
+
+	if (value.indexOf('/') === -1)
+		return payloadDir + '/' + value;
+
+	return value;
+}
+
 function isManagedPayloadPath(value, payloadDir) {
 	value = normalizeValue(value);
 
@@ -55,9 +76,6 @@ function isManagedPayloadPath(value, payloadDir) {
 	if (value.indexOf('//') !== -1 || value.indexOf('/./') !== -1 || value.indexOf('/../') !== -1 ||
 			value.slice(-2) === '/.' || value.slice(-3) === '/..')
 		return false;
-
-	if (value.indexOf('/') === -1)
-		return true;
 
 	return value.indexOf(payloadDir + '/') === 0;
 }
@@ -114,33 +132,51 @@ return view.extend({
 		oEnabled.default = '0';
 		oEnabled.rmempty = false;
 
+		var oMode = s.option(form.ListValue, 'mode', '工作模式',
+			'显式选择当前使用 SIP URI 还是二进制负载模式，切换模式时无需手动清空另一组配置。');
+		oMode.value('uri', 'URI 模式 (-u)');
+		oMode.value('payload', '二进制文件模式 (-b)');
+		oMode.default = 'uri';
+		oMode.rmempty = false;
+		oMode.cfgvalue = function(sectionId) {
+			return inferMode('fakesip', sectionId, 'uri');
+		};
+
+		var currentMode = function(sectionId) {
+			return normalizeValue(getOptionValue('fakesip', oMode, sectionId)) || inferMode('fakesip', sectionId, 'uri');
+		};
+
 		var oHost = s.option(form.DynamicList, 'host', '用于 SIP 混淆的 URI (-u)',
-			'每个值对应一个 -u 参数。设置 -b 后，此项必须留空。');
+			'URI 模式下生效。每个值对应一个 -u 参数，可填写多个。');
 		oHost.rmempty = true;
+		oHost.retain = true;
+		oHost.depends('mode', 'uri');
 
-		var oPayload = s.option(form.Value, 'payload_file', '二进制负载文件 (-b)',
-			'填写文件名时会从 ' + payloadDir + ' 读取；也可填写该目录下的绝对路径。设置此项后，-u 必须留空。该目录会在 sysupgrade 时保留。');
-		oPayload.placeholder = 'payload.bin';
+		var oPayload = s.option(form.FileUpload, 'payload_file', 'Payload 文件管理与选择 (-b)',
+			'二进制文件模式下生效。可在这里上传、下载、删除并选择 ' + payloadDir + ' 中的 payload 文件。');
+		oPayload.root_directory = payloadDir;
+		oPayload.browser = true;
+		oPayload.enable_upload = true;
+		oPayload.enable_remove = true;
+		oPayload.enable_download = true;
+		oPayload.show_hidden = false;
 		oPayload.rmempty = true;
-
+		oPayload.retain = true;
+		oPayload.depends('mode', 'payload');
+		oPayload.cfgvalue = function(sectionId) {
+			return normalizePayloadValue(uci.get('fakesip', sectionId, 'payload_file'), payloadDir);
+		};
 		oPayload.validate = function(sectionId, value) {
+			if (currentMode(sectionId) !== 'payload')
+				return true;
+
 			value = normalizeValue(value);
 
 			if (!value)
-				return true;
+				return '二进制文件模式下请选择一个 payload 文件';
 
 			if (!isManagedPayloadPath(value, payloadDir))
-				return '请填写文件名，或 ' + payloadDir + '/ 下的绝对路径';
-
-			if (normalizeList(getOptionValue('fakesip', oHost, sectionId)).length > 0)
-				return '-b 不能与 -u 同时设置';
-
-			return true;
-		};
-
-		oHost.validate = function(sectionId, value) {
-			if (normalizeList(value).length > 0 && normalizeValue(getOptionValue('fakesip', oPayload, sectionId)))
-				return '设置 -b 后，-u 必须留空';
+				return '只能选择 ' + payloadDir + ' 下的文件';
 
 			return true;
 		};

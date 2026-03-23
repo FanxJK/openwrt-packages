@@ -47,6 +47,27 @@ function hasListValue(config, option, sectionId) {
 	return normalizeList(getOptionValue(config, option, sectionId)).length > 0;
 }
 
+function inferMode(config, sectionId, fallbackMode) {
+	var configuredMode = normalizeValue(uci.get(config, sectionId, 'mode'));
+
+	if (configuredMode)
+		return configuredMode;
+
+	return normalizeValue(uci.get(config, sectionId, 'payload_file')) ? 'payload' : fallbackMode;
+}
+
+function normalizePayloadValue(value, payloadDir) {
+	value = normalizeValue(value);
+
+	if (!value)
+		return '';
+
+	if (value.indexOf('/') === -1)
+		return payloadDir + '/' + value;
+
+	return value;
+}
+
 function isManagedPayloadPath(value, payloadDir) {
 	value = normalizeValue(value);
 
@@ -59,9 +80,6 @@ function isManagedPayloadPath(value, payloadDir) {
 	if (value.indexOf('//') !== -1 || value.indexOf('/./') !== -1 || value.indexOf('/../') !== -1 ||
 			value.slice(-2) === '/.' || value.slice(-3) === '/..')
 		return false;
-
-	if (value.indexOf('/') === -1)
-		return true;
 
 	return value.indexOf(payloadDir + '/') === 0;
 }
@@ -118,44 +136,75 @@ return view.extend({
 		oEnabled.default = '0';
 		oEnabled.rmempty = false;
 
+		var oMode = s.option(form.ListValue, 'mode', '工作模式',
+			'显式选择当前使用主机名混淆还是二进制负载模式，切换模式时无需手动清空另一组配置。');
+		oMode.value('host', '主机名模式 (-h / -e)');
+		oMode.value('payload', '二进制文件模式 (-b)');
+		oMode.default = 'host';
+		oMode.rmempty = false;
+		oMode.cfgvalue = function(sectionId) {
+			return inferMode('fakehttp', sectionId, 'host');
+		};
+
+		var currentMode = function(sectionId) {
+			return normalizeValue(getOptionValue('fakehttp', oMode, sectionId)) || inferMode('fakehttp', sectionId, 'host');
+		};
+
 		var oHost = s.option(form.DynamicList, 'host', '用于 HTTP 混淆的主机名 (-h)',
-			'每个值对应一个 -h 参数。设置 -b 后，此项必须留空。');
+			'主机名模式下生效。至少填写一个 HTTP 或 HTTPS 主机名。');
 		oHost.rmempty = true;
+		oHost.retain = true;
+		oHost.depends('mode', 'host');
+		oHost.validate = function(sectionId, value) {
+			if (currentMode(sectionId) !== 'host')
+				return true;
+
+			if (normalizeList(value).length > 0 || hasListValue('fakehttp', oHttpsHost, sectionId))
+				return true;
+
+			return '主机名模式下至少需要填写一个 -h 或 -e';
+		};
 
 		var oHttpsHost = s.option(form.DynamicList, 'httpshost', '用于 HTTPS 混淆的主机名 (-e)',
-			'每个值对应一个 -e 参数。设置 -b 后，此项必须留空。');
+			'主机名模式下生效。至少填写一个 HTTP 或 HTTPS 主机名。');
 		oHttpsHost.rmempty = true;
+		oHttpsHost.retain = true;
+		oHttpsHost.depends('mode', 'host');
+		oHttpsHost.validate = function(sectionId, value) {
+			if (currentMode(sectionId) !== 'host')
+				return true;
 
-		var oPayload = s.option(form.Value, 'payload_file', '二进制负载文件 (-b)',
-			'填写文件名时会从 ' + payloadDir + ' 读取；也可填写该目录下的绝对路径。设置此项后，-h 和 -e 必须留空。该目录会在 sysupgrade 时保留。');
-		oPayload.placeholder = 'payload.bin';
+			if (normalizeList(value).length > 0 || hasListValue('fakehttp', oHost, sectionId))
+				return true;
+
+			return '主机名模式下至少需要填写一个 -h 或 -e';
+		};
+
+		var oPayload = s.option(form.FileUpload, 'payload_file', 'Payload 文件管理与选择 (-b)',
+			'二进制文件模式下生效。可在这里上传、下载、删除并选择 ' + payloadDir + ' 中的 payload 文件。');
+		oPayload.root_directory = payloadDir;
+		oPayload.browser = true;
+		oPayload.enable_upload = true;
+		oPayload.enable_remove = true;
+		oPayload.enable_download = true;
+		oPayload.show_hidden = false;
 		oPayload.rmempty = true;
-
+		oPayload.retain = true;
+		oPayload.depends('mode', 'payload');
+		oPayload.cfgvalue = function(sectionId) {
+			return normalizePayloadValue(uci.get('fakehttp', sectionId, 'payload_file'), payloadDir);
+		};
 		oPayload.validate = function(sectionId, value) {
+			if (currentMode(sectionId) !== 'payload')
+				return true;
+
 			value = normalizeValue(value);
 
 			if (!value)
-				return true;
+				return '二进制文件模式下请选择一个 payload 文件';
 
 			if (!isManagedPayloadPath(value, payloadDir))
-				return '请填写文件名，或 ' + payloadDir + '/ 下的绝对路径';
-
-			if (hasListValue('fakehttp', oHost, sectionId) || hasListValue('fakehttp', oHttpsHost, sectionId))
-				return '-b 不能与 -h 或 -e 同时设置';
-
-			return true;
-		};
-
-		oHost.validate = function(sectionId, value) {
-			if (normalizeList(value).length > 0 && normalizeValue(getOptionValue('fakehttp', oPayload, sectionId)))
-				return '设置 -b 后，-h 必须留空';
-
-			return true;
-		};
-
-		oHttpsHost.validate = function(sectionId, value) {
-			if (normalizeList(value).length > 0 && normalizeValue(getOptionValue('fakehttp', oPayload, sectionId)))
-				return '设置 -b 后，-e 必须留空';
+				return '只能选择 ' + payloadDir + ' 下的文件';
 
 			return true;
 		};
