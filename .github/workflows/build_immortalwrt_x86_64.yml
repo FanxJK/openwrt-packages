@@ -1,0 +1,252 @@
+name: Build Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Build target
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - "24.10"
+          - snapshot
+      packages:
+        description: Optional package list separated by spaces; empty builds all packages in this repo
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.channel }} x86_64 packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    if: github.event.inputs.channel == 'all' || github.event.inputs.channel == matrix.channel
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - channel: "24.10"
+            expected_ext: ipk
+          - channel: snapshot
+            expected_ext: apk
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            file \
+            flex \
+            g++ \
+            gawk \
+            gcc-multilib \
+            g++-multilib \
+            gettext \
+            git \
+            libncurses-dev \
+            libssl-dev \
+            make \
+            patch \
+            pkgconf \
+            python3 \
+            python3-setuptools \
+            rsync \
+            swig \
+            unzip \
+            wget \
+            zlib1g-dev \
+            zstd
+
+      - name: Resolve SDK URL
+        id: sdk
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ matrix.channel }}" == "24.10" ]]; then
+            release_version="$(
+              curl -fsSL "https://downloads.immortalwrt.org/releases/" \
+                | grep -oE 'href="24\.10\.[0-9]+/' \
+                | sed -E 's/^href="(24\.10\.[0-9]+)\/$/\1/' \
+                | sort -V \
+                | tail -n1
+            )"
+
+            if [[ -z "${release_version}" ]]; then
+              echo "::error::Unable to resolve the latest ImmortalWrt 24.10 release."
+              exit 1
+            fi
+
+            sdk_page="https://downloads.immortalwrt.org/releases/${release_version}/targets/x86/64/"
+            sdk_name="$(
+              curl -fsSL "${sdk_page}" \
+                | grep -oE "immortalwrt-sdk-${release_version}-x86-64_[^\"]+\.tar\.zst" \
+                | head -n1
+            )"
+            resolved_channel="${release_version}"
+          else
+            sdk_page="https://downloads.immortalwrt.org/snapshots/targets/x86/64/"
+            sdk_name="$(
+              curl -fsSL "${sdk_page}" \
+                | grep -oE 'immortalwrt-sdk-x86-64_[^"]+\.tar\.zst' \
+                | head -n1
+            )"
+            resolved_channel="snapshot"
+          fi
+
+          if [[ -z "${sdk_name}" ]]; then
+            echo "::error::Unable to resolve the SDK filename from ${sdk_page}."
+            exit 1
+          fi
+
+          echo "url=${sdk_page}${sdk_name}" >> "$GITHUB_OUTPUT"
+          echo "resolved_channel=${resolved_channel}" >> "$GITHUB_OUTPUT"
+
+      - name: Download and extract SDK
+        id: unpack
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sdk_dir="${RUNNER_TEMP}/immortalwrt-sdk-${{ matrix.channel }}"
+          mkdir -p "${sdk_dir}"
+          curl -fL "${{ steps.sdk.outputs.url }}" -o "${RUNNER_TEMP}/sdk.tar.zst"
+          tar --zstd -xf "${RUNNER_TEMP}/sdk.tar.zst" -C "${sdk_dir}" --strip-components=1
+
+          echo "sdk_dir=${sdk_dir}" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare feeds
+        shell: bash
+        working-directory: ${{ steps.unpack.outputs.sdk_dir }}
+        run: |
+          set -euo pipefail
+
+          echo "src-link custom ${GITHUB_WORKSPACE}" >> feeds.conf.default
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a -f
+
+      - name: Build packages
+        id: build
+        shell: bash
+        working-directory: ${{ steps.unpack.outputs.sdk_dir }}
+        env:
+          REQUESTED_PACKAGES: ${{ github.event.inputs.packages }}
+        run: |
+          set -euo pipefail
+
+          make defconfig
+
+          declare -a packages=()
+
+          if [[ -n "${REQUESTED_PACKAGES}" ]]; then
+            read -r -a packages <<< "${REQUESTED_PACKAGES}"
+          else
+            while IFS= read -r -d '' makefile; do
+              packages+=("$(basename "$(dirname "${makefile}")")")
+            done < <(
+              find "${GITHUB_WORKSPACE}/packages" "${GITHUB_WORKSPACE}/luci/applications" \
+                -name Makefile -print0
+            )
+          fi
+
+          if [[ "${#packages[@]}" -eq 0 ]]; then
+            echo "::error::No packages found to build."
+            exit 1
+          fi
+
+          mapfile -t packages < <(printf '%s\n' "${packages[@]}" | sort -u)
+
+          for pkg in "${packages[@]}"; do
+            if [[ ! -d "package/feeds/custom/${pkg}" ]]; then
+              echo "::error::Package '${pkg}' was not installed from the custom feed."
+              exit 1
+            fi
+          done
+
+          mkdir -p "${RUNNER_TEMP}/build-logs"
+          echo "packages=${packages[*]}" >> "$GITHUB_OUTPUT"
+
+          for pkg in "${packages[@]}"; do
+            make "package/feeds/custom/${pkg}/compile" -j"$(nproc)" V=sc 2>&1 \
+              | tee "${RUNNER_TEMP}/build-logs/${pkg}.log"
+          done
+
+      - name: Collect artifacts
+        id: artifacts
+        shell: bash
+        working-directory: ${{ steps.unpack.outputs.sdk_dir }}
+        run: |
+          set -euo pipefail
+
+          artifact_dir="${RUNNER_TEMP}/artifacts/${{ matrix.channel }}"
+          mkdir -p "${artifact_dir}/packages"
+
+          rsync -a --prune-empty-dirs \
+            --include '*/' \
+            --include '*.ipk' \
+            --include '*.apk' \
+            --exclude '*' \
+            bin/packages/ "${artifact_dir}/packages/"
+
+          expected_count="$(find "${artifact_dir}/packages" -type f -name "*.${{ matrix.expected_ext }}" | wc -l)"
+          if [[ "${expected_count}" -eq 0 ]]; then
+            echo "::error::No .${{ matrix.expected_ext }} packages were produced for ${{ matrix.channel }}."
+            find "${artifact_dir}/packages" -type f | sort || true
+            exit 1
+          fi
+
+          find "${artifact_dir}/packages" -type f | sort > "${artifact_dir}/FILES.txt"
+          (
+            cd "${artifact_dir}"
+            find packages -type f | sort | xargs sha256sum > SHA256SUMS
+          )
+
+          {
+            echo "channel=${{ matrix.channel }}"
+            echo "resolved_channel=${{ steps.sdk.outputs.resolved_channel }}"
+            echo "sdk_url=${{ steps.sdk.outputs.url }}"
+            echo "expected_ext=${{ matrix.expected_ext }}"
+            echo "packages=${{ steps.build.outputs.packages }}"
+          } > "${artifact_dir}/build-info.txt"
+
+          echo "artifact_dir=${artifact_dir}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: immortalwrt-x86_64-${{ steps.sdk.outputs.resolved_channel }}-${{ matrix.expected_ext }}
+          path: ${{ steps.artifacts.outputs.artifact_dir }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: immortalwrt-x86_64-${{ matrix.channel }}-logs
+          path: ${{ runner.temp }}/build-logs
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Write summary
+        shell: bash
+        run: |
+          {
+            echo "## ImmortalWrt x86_64 build"
+            echo ""
+            echo "- Requested channel: \`${{ matrix.channel }}\`"
+            echo "- Resolved SDK: [${{ steps.sdk.outputs.url }}](${{ steps.sdk.outputs.url }})"
+            echo "- Expected package type: \`${{ matrix.expected_ext }}\`"
+            echo "- Packages: \`${{ steps.build.outputs.packages }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
