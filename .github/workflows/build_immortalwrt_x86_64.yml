@@ -22,19 +22,46 @@ permissions:
   contents: read
 
 jobs:
+  prepare:
+    name: Prepare build matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Set build matrix
+        id: set-matrix
+        shell: bash
+        env:
+          CHANNEL: ${{ github.event.inputs.channel }}
+        run: |
+          set -euo pipefail
+
+          case "${CHANNEL}" in
+            all)
+              matrix='{"include":[{"channel":"24.10","expected_ext":"ipk"},{"channel":"snapshot","expected_ext":"apk"}]}'
+              ;;
+            24.10)
+              matrix='{"include":[{"channel":"24.10","expected_ext":"ipk"}]}'
+              ;;
+            snapshot)
+              matrix='{"include":[{"channel":"snapshot","expected_ext":"apk"}]}'
+              ;;
+            *)
+              echo "::error::Unsupported channel: ${CHANNEL}"
+              exit 1
+              ;;
+          esac
+
+          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build ${{ matrix.channel }} x86_64 packages
+    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    if: github.event.inputs.channel == 'all' || github.event.inputs.channel == matrix.channel
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - channel: "24.10"
-            expected_ext: ipk
-          - channel: snapshot
-            expected_ext: apk
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
 
     steps:
       - name: Checkout
