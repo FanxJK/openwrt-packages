@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=fakehttp
 PKG_VERSION:=0.9.18
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE:=fakehttp-linux-$(ARCH).tar.gz
 PKG_SOURCE_URL:=https://github.com/MikeWang000000/FakeHTTP/releases/download/$(PKG_VERSION)/
@@ -53,8 +53,9 @@ define Package/fakehttp/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/fakehttp.config $(1)/etc/config/fakehttp
 
-	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_DIR) $(1)/etc/init.d $(1)/etc/fakehttp/payloads $(1)/lib/upgrade/keep.d
 	$(INSTALL_BIN) ./files/fakehttp.init $(1)/etc/init.d/fakehttp
+	$(INSTALL_CONF) ./files/fakehttp.keep $(1)/lib/upgrade/keep.d/fakehttp
 endef
 
 $(eval $(call BuildPackage,fakehttp))

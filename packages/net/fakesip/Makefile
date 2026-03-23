@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=fakesip
 PKG_VERSION:=0.9.1
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE:=fakesip-linux-$(ARCH).tar.gz
 PKG_SOURCE_URL:=https://github.com/MikeWang000000/FakeSIP/releases/download/$(PKG_VERSION)/
@@ -53,8 +53,9 @@ define Package/fakesip/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/fakesip.config $(1)/etc/config/fakesip
 
-	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_DIR) $(1)/etc/init.d $(1)/etc/fakesip/payloads $(1)/lib/upgrade/keep.d
 	$(INSTALL_BIN) ./files/fakesip.init $(1)/etc/init.d/fakesip
+	$(INSTALL_CONF) ./files/fakesip.keep $(1)/lib/upgrade/keep.d/fakesip
 endef
 
 $(eval $(call BuildPackage,fakesip))

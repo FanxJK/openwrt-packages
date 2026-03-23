@@ -5,7 +5,7 @@ LUCI_DESCRIPTION:=Obfuscate all your TCP connections into HTTP protocol, using N
 LUCI_DEPENDS:=+fakehttp
 LUCI_PKGARCH:=all
 
-PKG_VERSION:=1.0
+PKG_VERSION:=2.0
 PKG_RELEASE:=1
 
 include $(TOPDIR)/feeds/luci/luci.mk
