@@ -3,6 +3,7 @@
 'require form';
 'require uci';
 'require rpc';
+'require fs';
 'require tools.widgets as widgets';
 
 var callServiceList = rpc.declare({
@@ -49,50 +50,72 @@ function inferMode(config, sectionId, fallbackMode) {
 	if (configuredMode)
 		return configuredMode;
 
-	return normalizeValue(uci.get(config, sectionId, 'payload_file')) ? 'payload' : fallbackMode;
+	return normalizeList(uci.get(config, sectionId, 'payload_file')).length > 0 ? 'payload' : fallbackMode;
 }
 
-function normalizePayloadValue(value, payloadDir) {
-	value = normalizeValue(value);
+function normalizePayloadSelection(value, payloadDir) {
+	var items = normalizeList(value);
+	var seen = {};
+	var result = [];
+	var i, item;
 
-	if (!value)
-		return '';
+	for (i = 0; i < items.length; i++) {
+		item = items[i];
 
-	if (value.indexOf('/') === -1)
-		return payloadDir + '/' + value;
+		if (item.indexOf(payloadDir + '/') === 0)
+			item = item.slice(payloadDir.length + 1);
+		else if (item.charAt(0) === '/')
+			item = item.slice(1);
 
-	return value;
+		while (item.indexOf('./') === 0)
+			item = item.slice(2);
+
+		if (!item || item === '.' || item === '..' || item.indexOf('/') !== -1 || seen[item])
+			continue;
+
+		seen[item] = true;
+		result.push(item);
+	}
+
+	return result;
 }
 
-function isManagedPayloadPath(value, payloadDir) {
-	value = normalizeValue(value);
+function formatPayloadLabel(entry) {
+	var size = (entry != null && entry.size != null) ? entry.size + ' B' : '? B';
+	var date = '';
 
-	if (!value)
-		return true;
+	if (entry != null && entry.mtime != null) {
+		try {
+			date = ' | ' + new Date(entry.mtime * 1000).toLocaleString();
+		} catch (e) {
+			date = '';
+		}
+	}
 
-	if (value === '.' || value === '..')
-		return false;
-
-	if (value.indexOf('//') !== -1 || value.indexOf('/./') !== -1 || value.indexOf('/../') !== -1 ||
-			value.slice(-2) === '/.' || value.slice(-3) === '/..')
-		return false;
-
-	return value.indexOf(payloadDir + '/') === 0;
+	return entry.name + ' | ' + size + date;
 }
 
 return view.extend({
 	load: function() {
+		var payloadDir = '/etc/fakesip/payloads';
+
 		return Promise.all([
-			uci.load('fakesip')
+			uci.load('fakesip'),
+			L.resolveDefault(fs.list(payloadDir), [])
 		]);
 	},
 
-	render: function() {
+	render: function(data) {
+		var payloadDir = '/etc/fakesip/payloads';
+		var payloadEntries = (data[1] || []).filter(function(entry) {
+			return entry.type === 'file';
+		}).sort(function(a, b) {
+			return a.name.localeCompare(b.name);
+		});
 		var m = new form.Map('fakesip', 'FakeSIP',
 			'FakeSIP 可以将你的 UDP 流量伪装成 SIP 协议以规避 DPI 检测，基于 nftables / iptables 的 Netfilter Queue (NFQUEUE)。<br />' +
 			'用法: <a href="https://github.com/MikeWang000000/FakeSIP/wiki" target="_blank">https://github.com/MikeWang000000/FakeSIP/wiki</a>'
 		);
-		var payloadDir = '/etc/fakesip/payloads';
 
 		var statusSection = m.section(form.TypedSection, 'fakesip');
 		statusSection.anonymous = true;
@@ -152,34 +175,69 @@ return view.extend({
 		oHost.retain = true;
 		oHost.depends('mode', 'uri');
 
-		var oPayload = s.option(form.FileUpload, 'payload_file', 'Payload 文件管理与选择 (-b)',
-			'二进制文件模式下生效。可在这里上传、下载、删除并选择 ' + payloadDir + ' 中的 payload 文件。');
-		oPayload.root_directory = payloadDir;
-		oPayload.browser = true;
-		oPayload.enable_upload = true;
-		oPayload.enable_remove = true;
-		oPayload.enable_download = true;
-		oPayload.show_hidden = false;
-		oPayload.rmempty = true;
-		oPayload.retain = true;
-		oPayload.depends('mode', 'payload');
-		oPayload.cfgvalue = function(sectionId) {
-			return normalizePayloadValue(uci.get('fakesip', sectionId, 'payload_file'), payloadDir);
+		var oPayloadManager = s.option(form.FileUpload, '_payload_manager', 'Payload 目录管理',
+			'用于上传、下载、删除 ' + payloadDir + ' 中的文件。上传或删除后，请点击下方“刷新 Payload 列表”再勾选要生效的文件。');
+		oPayloadManager.root_directory = payloadDir;
+		oPayloadManager.browser = true;
+		oPayloadManager.enable_upload = true;
+		oPayloadManager.enable_remove = true;
+		oPayloadManager.enable_download = true;
+		oPayloadManager.show_hidden = false;
+		oPayloadManager.rmempty = true;
+		oPayloadManager.retain = true;
+		oPayloadManager.depends('mode', 'payload');
+		oPayloadManager.cfgvalue = function() {
+			return '';
 		};
-		oPayload.validate = function(sectionId, value) {
+		oPayloadManager.write = function() {};
+		oPayloadManager.remove = function() {};
+
+		var oPayloadRefresh = s.option(form.Button, '_payload_refresh', '刷新 Payload 列表');
+		oPayloadRefresh.inputtitle = '刷新文件列表';
+		oPayloadRefresh.inputstyle = 'reload';
+		oPayloadRefresh.depends('mode', 'payload');
+		oPayloadRefresh.onclick = function() {
+			window.location.reload();
+			return false;
+		};
+
+		var oPayloadFiles = s.option(form.MultiValue, 'payload_file', '选择生效的 Payload 文件 (-b)',
+			'勾选目录下要使用的 payload 文件，可多选；后端会为每个勾选文件追加一个 -b 参数。');
+		oPayloadFiles.rmempty = true;
+		oPayloadFiles.retain = true;
+		oPayloadFiles.create = false;
+		oPayloadFiles.display_size = 8;
+		oPayloadFiles.dropdown_size = 12;
+		oPayloadFiles.depends('mode', 'payload');
+		oPayloadFiles.cfgvalue = function(sectionId) {
+			return normalizePayloadSelection(uci.get('fakesip', sectionId, 'payload_file'), payloadDir);
+		};
+		oPayloadFiles.validate = function(sectionId, value) {
 			if (currentMode(sectionId) !== 'payload')
 				return true;
 
-			value = normalizeValue(value);
+			value = normalizePayloadSelection(value, payloadDir);
 
-			if (!value)
-				return '二进制文件模式下请选择一个 payload 文件';
+			if (value.length > 0)
+				return true;
 
-			if (!isManagedPayloadPath(value, payloadDir))
-				return '只能选择 ' + payloadDir + ' 下的文件';
+			if (payloadEntries.length === 1)
+				return true;
 
-			return true;
+			if (payloadEntries.length === 0)
+				return '请先上传至少一个 payload 文件';
+
+			return '二进制文件模式下请至少勾选一个 payload 文件';
 		};
+
+		if (payloadEntries.length === 0) {
+			oPayloadFiles.value('', '当前目录中暂无可选 payload 文件');
+			oPayloadFiles.readonly = true;
+		} else {
+			payloadEntries.forEach(function(entry) {
+				oPayloadFiles.value(entry.name, formatPayloadLabel(entry));
+			});
+		}
 
 		var i = s.option(widgets.DeviceSelect, 'iface', '网络接口名称 (-i)',
 			'可以添加多个网络接口，每个接口对应一个 -i 参数');

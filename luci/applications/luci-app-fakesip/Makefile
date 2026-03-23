@@ -5,8 +5,8 @@ LUCI_DESCRIPTION:=Disguise your UDP traffic as SIP protocol to evade DPI detecti
 LUCI_DEPENDS:=+fakesip +rpcd-mod-file
 LUCI_PKGARCH:=all
 
-PKG_VERSION:=2.0
-PKG_RELEASE:=2
+PKG_VERSION:=2.1
+PKG_RELEASE:=1
 
 include $(TOPDIR)/feeds/luci/luci.mk
 

@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=fakesip
 PKG_VERSION:=0.9.1
-PKG_RELEASE:=3
+PKG_RELEASE:=1
 
 PKG_SOURCE:=fakesip-linux-$(ARCH).tar.gz
 PKG_SOURCE_URL:=https://github.com/MikeWang000000/FakeSIP/releases/download/$(PKG_VERSION)/

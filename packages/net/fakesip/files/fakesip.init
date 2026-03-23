@@ -12,29 +12,81 @@ PAYLOAD_DIR=/etc/fakesip/payloads
 
 resolve_payload_path() {
 	local payload_file="$1"
+	local relative_path
 
 	case "$payload_file" in
-		''|.|..|*//*|*/./*|*/../*|*/.|*/..)
+		'')
 			return 1
-		;;
-		/*)
-			case "$payload_file" in
-				"$PAYLOAD_DIR"/*)
-					printf '%s\n' "$payload_file"
-					return 0
-				;;
-			esac
-		;;
-		*/*)
-			return 1
-		;;
-		*)
-			printf '%s/%s\n' "$PAYLOAD_DIR" "$payload_file"
-			return 0
 		;;
 	esac
 
-	return 1
+	case "$payload_file" in
+		"$PAYLOAD_DIR")
+			return 1
+		;;
+		"$PAYLOAD_DIR"/*)
+			relative_path="${payload_file#$PAYLOAD_DIR/}"
+		;;
+		/*)
+			relative_path="${payload_file#/}"
+		;;
+		*)
+			relative_path="$payload_file"
+		;;
+	esac
+
+	while [ "${relative_path#./}" != "$relative_path" ]; do
+		relative_path="${relative_path#./}"
+	done
+
+	case "$relative_path" in
+		''|.|..|*//*|*/./*|*/../*|*/.|*/..|../*)
+			return 1
+		;;
+	esac
+
+	printf '%s/%s\n' "$PAYLOAD_DIR" "$relative_path"
+	return 0
+}
+
+find_default_payload() {
+	local entry payload_path
+	local count=0
+
+	for entry in "$PAYLOAD_DIR"/*; do
+		[ -f "$entry" ] || continue
+		payload_path="$entry"
+		count=$((count + 1))
+		[ "$count" -le 1 ] || return 1
+	done
+
+	[ "$count" -eq 1 ] || return 1
+	printf '%s\n' "$payload_path"
+	return 0
+}
+
+resolve_payload_paths() {
+	local payload_files="$1"
+	local payload_file payload_path payload_paths="" count=0
+
+	for payload_file in $payload_files; do
+		payload_path="$(resolve_payload_path "$payload_file")" || {
+			echo "Error: payload_file must be a file name or a path under $PAYLOAD_DIR"
+			return 1
+		}
+
+		if [ ! -f "$payload_path" ]; then
+			echo "Error: payload file not found: $payload_path"
+			return 1
+		fi
+
+		payload_paths="${payload_paths}${payload_paths:+ }${payload_path}"
+		count=$((count + 1))
+	done
+
+	[ "$count" -gt 0 ] || return 1
+	printf '%s\n' "$payload_paths"
+	return 0
 }
 
 start_service() {
@@ -45,10 +97,10 @@ start_service() {
 	[ "$enabled" -eq 1 ] || return 1
 
 	# Read list configurations
-	local mode host_list iface_list payload_file payload_path
+	local mode host_list iface_list payload_files payload_path payload_paths
 	config_get mode main mode
 	config_get host_list main host
-	config_get payload_file main payload_file
+	config_get payload_files main payload_file
 	config_get iface_list main iface
 	config_get fwmark main fwmark
 	config_get num main num
@@ -64,7 +116,7 @@ start_service() {
 	fi
 
 	if [ -z "$mode" ]; then
-		if [ -n "$payload_file" ]; then
+		if [ -n "$payload_files" ]; then
 			mode="payload"
 		else
 			mode="uri"
@@ -76,13 +128,16 @@ start_service() {
 		:
 	;;
 	payload)
-		payload_path="$(resolve_payload_path "$payload_file")" || {
-			echo "Error: payload_file must be a file name or a path under $PAYLOAD_DIR"
-			return 1
-		}
+		if [ -z "$payload_files" ]; then
+			payload_path="$(find_default_payload)" || {
+				echo "Error: payload mode requires selecting at least one payload file, or keeping exactly one file in $PAYLOAD_DIR"
+				return 1
+			}
+		else
+			payload_paths="$(resolve_payload_paths "$payload_files")" || return 1
+		fi
 
-		if [ ! -f "$payload_path" ]; then
-			echo "Error: payload file not found: $payload_path"
+		if [ -n "$payload_path" ] && [ ! -f "$payload_path" ]; then
 			return 1
 		fi
 	;;
@@ -96,7 +151,12 @@ start_service() {
 	procd_set_param command /usr/bin/fakesip
 
 	if [ "$mode" = "payload" ]; then
-		procd_append_param command -b "$payload_path"
+		[ -n "$payload_path" ] && procd_append_param command -b "$payload_path"
+		if [ -n "$payload_paths" ]; then
+			for payload_path in $payload_paths; do
+				procd_append_param command -b "$payload_path"
+			done
+		fi
 	fi
 
 	# Handle multiple interface parameters (-i)
