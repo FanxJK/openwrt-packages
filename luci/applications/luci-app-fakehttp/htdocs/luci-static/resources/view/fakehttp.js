@@ -47,6 +47,10 @@ function hasListValue(config, option, sectionId) {
 	return normalizeList(getOptionValue(config, option, sectionId)).length > 0;
 }
 
+function currentListValue(config, option, sectionId) {
+	return normalizeList(getOptionValue(config, option, sectionId));
+}
+
 function inferMode(config, sectionId, fallbackMode) {
 	var configuredMode = normalizeValue(uci.get(config, sectionId, 'mode'));
 
@@ -155,11 +159,11 @@ return view.extend({
 		oHost.rmempty = true;
 		oHost.retain = true;
 		oHost.depends('mode', 'host');
-		oHost.validate = function(sectionId, value) {
+		oHost.validate = function(sectionId) {
 			if (currentMode(sectionId) !== 'host')
 				return true;
 
-			if (normalizeList(value).length > 0 || hasListValue('fakehttp', oHttpsHost, sectionId))
+			if (currentListValue('fakehttp', oHost, sectionId).length > 0 || hasListValue('fakehttp', oHttpsHost, sectionId))
 				return true;
 
 			return '主机名模式下至少需要填写一个 -h 或 -e';
@@ -170,11 +174,11 @@ return view.extend({
 		oHttpsHost.rmempty = true;
 		oHttpsHost.retain = true;
 		oHttpsHost.depends('mode', 'host');
-		oHttpsHost.validate = function(sectionId, value) {
+		oHttpsHost.validate = function(sectionId) {
 			if (currentMode(sectionId) !== 'host')
 				return true;
 
-			if (normalizeList(value).length > 0 || hasListValue('fakehttp', oHost, sectionId))
+			if (currentListValue('fakehttp', oHttpsHost, sectionId).length > 0 || hasListValue('fakehttp', oHost, sectionId))
 				return true;
 
 			return '主机名模式下至少需要填写一个 -h 或 -e';
