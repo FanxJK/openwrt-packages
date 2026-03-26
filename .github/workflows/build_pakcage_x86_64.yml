@@ -1,17 +1,8 @@
-name: "Build Packages"
+name: "Build Package x86_64"
 
 on:
   workflow_dispatch:
     inputs:
-      channel:
-        description: Build target
-        required: true
-        type: choice
-        default: all
-        options:
-          - all
-          - "24.10"
-          - "25.12"
       packages:
         description: Optional package list separated by spaces; empty builds all packages in this repo
         required: false
@@ -29,46 +20,10 @@ permissions:
   contents: read
 
 jobs:
-  prepare:
-    name: Prepare build matrix
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      - name: Set build matrix
-        id: set-matrix
-        shell: bash
-        env:
-          CHANNEL: ${{ github.event.inputs.channel }}
-        run: |
-          set -euo pipefail
-
-          case "${CHANNEL}" in
-            all)
-              matrix='{"include":[{"label":"24.10","sdk_tag":"x86_64-openwrt-24.10","expected_ext":"ipk"},{"label":"25.12","sdk_tag":"x86_64-openwrt-25.12","expected_ext":"apk"}]}'
-              ;;
-            24.10)
-              matrix='{"include":[{"label":"24.10","sdk_tag":"x86_64-openwrt-24.10","expected_ext":"ipk"}]}'
-              ;;
-            25.12)
-              matrix='{"include":[{"label":"25.12","sdk_tag":"x86_64-openwrt-25.12","expected_ext":"apk"}]}'
-              ;;
-            *)
-              echo "::error::Unsupported channel: ${CHANNEL}"
-              exit 1
-              ;;
-          esac
-
-          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
-
   build:
-    name: Build x86_64-${{ matrix.label }}
-    needs: prepare
+    name: Build x86_64-25.12
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
 
     steps:
       - name: Checkout
@@ -80,7 +35,7 @@ jobs:
         uses: openwrt/gh-action-sdk@main
         env:
           CONTAINER: immortalwrt/sdk
-          ARCH: ${{ matrix.sdk_tag }}
+          ARCH: x86_64-openwrt-25.12
           FEEDNAME: packages_ci
           PACKAGES: ${{ github.event.inputs.packages }}
           BUILD_LOG: 1
@@ -98,7 +53,7 @@ jobs:
           set -euo pipefail
 
           feed_dir="bin/packages/x86_64/packages_ci"
-          artifact_dir="${RUNNER_TEMP}/artifacts/${{ matrix.label }}"
+          artifact_dir="${RUNNER_TEMP}/artifacts/25.12"
           requested_packages="${REQUESTED_PACKAGES:-ALL}"
 
           if [[ ! -d "${feed_dir}" ]]; then
@@ -107,9 +62,9 @@ jobs:
             exit 1
           fi
 
-          expected_count="$(find "${feed_dir}" -maxdepth 1 -type f -name "*.${{ matrix.expected_ext }}" | wc -l)"
+          expected_count="$(find "${feed_dir}" -maxdepth 1 -type f -name "*.apk" | wc -l)"
           if [[ "${expected_count}" -eq 0 ]]; then
-            echo "::error::No .${{ matrix.expected_ext }} packages were produced for x86_64-${{ matrix.label }}."
+            echo "::error::No .apk packages were produced for x86_64-25.12."
             find "${feed_dir}" -maxdepth 1 -type f | sort || true
             exit 1
           fi
@@ -124,9 +79,9 @@ jobs:
           )
 
           {
-            echo "target=${{ matrix.label }}"
-            echo "sdk_tag=${{ matrix.sdk_tag }}"
-            echo "expected_ext=${{ matrix.expected_ext }}"
+            echo "target=25.12"
+            echo "sdk_tag=x86_64-openwrt-25.12"
+            echo "expected_ext=apk"
             echo "packages=${requested_packages}"
           } > "${artifact_dir}/build-info.txt"
 
@@ -135,7 +90,7 @@ jobs:
       - name: Upload packages
         uses: actions/upload-artifact@v6
         with:
-          name: immortalwrt-x86_64-${{ matrix.label }}
+          name: immortalwrt-x86_64-25.12
           path: ${{ steps.artifacts.outputs.artifact_dir }}
           if-no-files-found: error
           retention-days: 7
@@ -144,7 +99,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v6
         with:
-          name: immortalwrt-x86_64-${{ matrix.label }}-logs
+          name: immortalwrt-x86_64-25.12-logs
           path: logs
           if-no-files-found: ignore
           retention-days: 7
@@ -157,10 +112,10 @@ jobs:
           requested_packages="${REQUESTED_PACKAGES:-ALL}"
 
           {
-            echo "## ImmortalWrt x86_64 build"
+            echo "## ImmortalWrt x86_64 package build"
             echo ""
-            echo "- Target: \`x86_64-${{ matrix.label }}\`"
-            echo "- SDK image: \`immortalwrt/sdk:${{ matrix.sdk_tag }}\`"
-            echo "- Expected package type: \`${{ matrix.expected_ext }}\`"
+            echo "- Target: \`x86_64-25.12\`"
+            echo "- SDK image: \`immortalwrt/sdk:x86_64-openwrt-25.12\`"
+            echo "- Expected package type: \`apk\`"
             echo "- Packages: \`${requested_packages}\`"
           } >> "$GITHUB_STEP_SUMMARY"
