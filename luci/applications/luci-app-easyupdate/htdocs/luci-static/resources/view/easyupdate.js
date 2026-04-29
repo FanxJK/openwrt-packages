@@ -1,6 +1,5 @@
 'use strict';
 'require view';
-'require form';
 'require uci';
 'require fs';
 'require ui';
@@ -107,14 +106,6 @@ return view.extend({
 	},
 
 	render: function(data) {
-		var m = new form.Map('easyupdate', _('EasyUpdate'),
-			_('EasyUpdate supports one-click firmware upgrade.') + '<br />' +
-			_('Update may cause restart failure, please proceed with caution.') + '<br /><br />' +
-			'<a href="' + FIRMWARE_REPO_URL + '" target="_blank" rel="noreferrer noopener">Powered by Fanx</a>');
-		var s = m.section(form.NamedSection, 'main', 'easyupdate');
-		var self = this;
-		var o;
-
 		this.state = {
 			localVersion: parseLocalVersion(data[1]),
 			isEfi: !!data[2],
@@ -127,33 +118,36 @@ return view.extend({
 		this.logLines = [];
 		this.progressTimer = null;
 
-		s.anonymous = true;
+		var node = this.renderPanel();
+		var self = this;
 
-		o = s.option(form.Value, 'mirror', _('Mirror Url'), _('Once configured, the mirror URL will be used when accessing Github release assets.'));
-		o.default = '';
-		o.placeholder = '';
-		o.rmempty = true;
+		window.setTimeout(function() {
+			self.refreshRelease();
+		}, 0);
 
-		o = s.option(form.Flag, 'keepconfig', _('KEEP CONFIG'), _('When selected, configuration is retained when firmware upgrade.'));
-		o.default = '1';
-		o.rmempty = false;
-
-		o = s.option(form.Flag, 'forceflash', _('Preference Force Flashing'), _('When selected, Preference Force Flashing while firmware upgrading.'));
-		o.default = '0';
-		o.rmempty = false;
-
-		return m.render().then(function(node) {
-			node.appendChild(self.renderPanel());
-
-			window.setTimeout(function() {
-				self.refreshRelease();
-			}, 0);
-
-			return node;
-		});
+		return node;
 	},
 
-	renderPanel: function() {
+		renderPanel: function() {
+		this.nodes.mirror = E('input', {
+			'class': 'cbi-input-text easyupdate-input',
+			type: 'text',
+			placeholder: _('Optional mirror URL'),
+			value: uci.get('easyupdate', 'main', 'mirror') || '',
+			change: this.saveSettings.bind(this),
+			blur: this.saveSettings.bind(this)
+		});
+		this.nodes.keepconfig = E('input', {
+			type: 'checkbox',
+			checked: uci.get('easyupdate', 'main', 'keepconfig') !== '0',
+			change: this.saveSettings.bind(this)
+		});
+		this.nodes.forceflash = E('input', {
+			type: 'checkbox',
+			checked: uci.get('easyupdate', 'main', 'forceflash') === '1',
+			change: this.saveSettings.bind(this)
+		});
+		this.nodes.saveStatus = E('span', { 'class': 'easyupdate-save-status' }, '');
 		this.nodes.cloud = E('span', { 'class': 'easyupdate-version-value' }, _('Collecting data...'));
 		this.nodes.release = E('pre', { 'class': 'easyupdate-release' }, _('Collecting data...'));
 		this.nodes.progressBar = E('div', { 'class': 'easyupdate-progress-bar' });
@@ -177,56 +171,131 @@ return view.extend({
 			style: 'display: none;'
 		});
 
-		return E('div', { 'class': 'easyupdate-wrap' }, [
+		return E('div', { 'class': 'easyupdate-page' }, [
 			E('style', {}, [
-				'.easyupdate-wrap{max-width:980px;margin:24px auto 0;padding:0 12px}',
-				'.easyupdate-card{border:1px solid rgba(127,127,127,.18);border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(127,127,127,.04));box-shadow:0 10px 30px rgba(0,0,0,.08);overflow:hidden}',
-				'.easyupdate-hero{padding:26px 28px;text-align:center;background:linear-gradient(135deg,rgba(0,123,255,.16),rgba(0,180,120,.10))}',
-				'.easyupdate-title{margin:0;font-size:24px;font-weight:700}',
-				'.easyupdate-subtitle{margin:8px auto 0;max-width:680px;opacity:.78;line-height:1.6}',
-				'.easyupdate-body{padding:24px 28px}',
-				'.easyupdate-version-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:18px}',
-				'.easyupdate-version-item{padding:16px;border:1px solid rgba(127,127,127,.16);border-radius:14px;background:rgba(127,127,127,.06);text-align:center}',
+				'.easyupdate-page{max-width:1020px;margin:0 auto;padding:8px 12px 28px}',
+				'.easyupdate-card{border:1px solid rgba(127,127,127,.18);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(127,127,127,.04));box-shadow:0 12px 34px rgba(0,0,0,.10);overflow:hidden}',
+				'.easyupdate-hero{padding:28px;text-align:center;background:linear-gradient(135deg,rgba(0,123,255,.16),rgba(0,180,120,.10))}',
+				'.easyupdate-title{margin:0;font-size:25px;font-weight:800}',
+				'.easyupdate-subtitle{margin:8px auto 0;max-width:720px;opacity:.78;line-height:1.6}',
+				'.easyupdate-body{padding:24px 28px 28px}',
+				'.easyupdate-block{margin-top:20px;padding:18px;border:1px solid rgba(127,127,127,.16);border-radius:16px;background:rgba(127,127,127,.055)}',
+				'.easyupdate-block:first-child{margin-top:0}',
+				'.easyupdate-block-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;font-size:16px;font-weight:800}',
+				'.easyupdate-save-status{font-size:12px;font-weight:600;opacity:.68}',
+				'.easyupdate-settings-grid{display:grid;grid-template-columns:minmax(220px,1.6fr) repeat(2,minmax(160px,.7fr));gap:14px;align-items:stretch}',
+				'.easyupdate-setting{display:flex;flex-direction:column;justify-content:center;gap:8px;padding:14px;border-radius:14px;background:rgba(255,255,255,.05)}',
+				'.easyupdate-setting-label{font-size:13px;font-weight:700}',
+				'.easyupdate-setting-help{font-size:12px;opacity:.66;line-height:1.45}',
+				'.easyupdate-input{box-sizing:border-box;width:100%;min-height:34px;border-radius:10px}',
+				'.easyupdate-switch{display:flex;align-items:center;gap:10px;font-weight:700}',
+				'.easyupdate-switch input{width:18px;height:18px}',
+				'.easyupdate-version-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}',
+				'.easyupdate-version-item{padding:16px;border-radius:14px;background:rgba(255,255,255,.05);text-align:center}',
 				'.easyupdate-version-label{display:block;margin-bottom:8px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;opacity:.62}',
-				'.easyupdate-version-value{font-size:16px;font-weight:700;word-break:break-word}',
-				'.easyupdate-section-title{margin:22px 0 10px;font-size:15px;font-weight:700}',
-				'.easyupdate-release{box-sizing:border-box;width:100%;min-height:120px;max-height:340px;overflow:auto;margin:0;padding:16px;border:1px solid rgba(127,127,127,.16);border-radius:14px;background:rgba(0,0,0,.035);white-space:pre-wrap;line-height:1.55}',
-				'.easyupdate-actions{margin-top:22px;text-align:center}',
-				'.easyupdate-button{min-width:210px;padding:10px 24px!important;border-radius:999px!important;font-weight:700!important}',
-				'.easyupdate-progress{height:18px;margin:18px auto 0;max-width:680px;border-radius:999px;background:rgba(127,127,127,.18);overflow:hidden}',
+				'.easyupdate-version-value{font-size:16px;font-weight:800;word-break:break-word}',
+				'.easyupdate-release{box-sizing:border-box;width:100%;min-height:130px;max-height:340px;overflow:auto;margin:0;padding:16px;border:1px solid rgba(127,127,127,.16);border-radius:14px;background:rgba(0,0,0,.035);white-space:pre-wrap;line-height:1.55}',
+				'.easyupdate-actions{margin-top:20px;text-align:center}',
+				'.easyupdate-button{min-width:220px;padding:10px 26px!important;border-radius:999px!important;font-weight:800!important}',
+				'.easyupdate-progress{height:18px;margin:18px auto 0;max-width:700px;border-radius:999px;background:rgba(127,127,127,.18);overflow:hidden}',
 				'.easyupdate-progress-bar{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,#0d6efd,#20c997);transition:width .25s ease}',
-				'.easyupdate-progress-text{margin-top:8px;text-align:center;font-weight:600}',
-				'.easyupdate-log{box-sizing:border-box;width:100%!important;height:220px;margin-top:12px;border-radius:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}',
-				'@media (max-width:700px){.easyupdate-version-grid{grid-template-columns:1fr}.easyupdate-hero,.easyupdate-body{padding:20px}.easyupdate-title{font-size:21px}}'
+				'.easyupdate-progress-text{margin-top:8px;text-align:center;font-weight:700}',
+				'.easyupdate-log{box-sizing:border-box;width:100%!important;height:220px;margin-top:0;border-radius:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}',
+				'@media (max-width:820px){.easyupdate-settings-grid,.easyupdate-version-grid{grid-template-columns:1fr}.easyupdate-hero,.easyupdate-body{padding:20px}.easyupdate-title{font-size:21px}}'
 			].join('\n')),
 			E('div', { 'class': 'easyupdate-card' }, [
 				E('div', { 'class': 'easyupdate-hero' }, [
 					E('h2', { 'class': 'easyupdate-title' }, _('Firmware Update')),
-					E('p', { 'class': 'easyupdate-subtitle' }, _('Check the latest firmware, download it with progress, verify integrity, and upgrade from this page.'))
+					E('p', { 'class': 'easyupdate-subtitle' }, _('Check the latest firmware, adjust upgrade options, download with progress, verify integrity, and upgrade from this page.')),
+					E('p', { 'class': 'easyupdate-subtitle' }, [
+						_('Firmware Source') + ': ',
+						E('a', { href: FIRMWARE_REPO_URL, target: '_blank', rel: 'noreferrer noopener' }, FIRMWARE_REPO_OWNER + '/' + FIRMWARE_REPO_NAME)
+					])
 				]),
 				E('div', { 'class': 'easyupdate-body' }, [
-					E('div', { 'class': 'easyupdate-version-grid' }, [
-						E('div', { 'class': 'easyupdate-version-item' }, [
-							E('span', { 'class': 'easyupdate-version-label' }, _('Local Firmware Version')),
-							E('span', { 'class': 'easyupdate-version-value' }, this.state.localVersion || _('Unknown'))
+					E('div', { 'class': 'easyupdate-block' }, [
+						E('div', { 'class': 'easyupdate-block-title' }, [
+							E('span', {}, _('Upgrade Settings')),
+							this.nodes.saveStatus
 						]),
-						E('div', { 'class': 'easyupdate-version-item' }, [
-							E('span', { 'class': 'easyupdate-version-label' }, _('Cloud Firmware Version')),
-							this.nodes.cloud
+						E('div', { 'class': 'easyupdate-settings-grid' }, [
+							E('label', { 'class': 'easyupdate-setting' }, [
+								E('span', { 'class': 'easyupdate-setting-label' }, _('Mirror Url')),
+								this.nodes.mirror,
+								E('span', { 'class': 'easyupdate-setting-help' }, _('Once configured, the mirror URL will be used when accessing Github release assets.'))
+							]),
+							E('label', { 'class': 'easyupdate-setting easyupdate-switch' }, [
+								this.nodes.keepconfig,
+								E('span', {}, _('KEEP CONFIG')),
+								E('span', { 'class': 'easyupdate-setting-help' }, _('When selected, configuration is retained when firmware upgrade.'))
+							]),
+							E('label', { 'class': 'easyupdate-setting easyupdate-switch' }, [
+								this.nodes.forceflash,
+								E('span', {}, _('Preference Force Flashing')),
+								E('span', { 'class': 'easyupdate-setting-help' }, _('When selected, Preference Force Flashing while firmware upgrading.'))
+							])
 						])
 					]),
-					E('div', { 'class': 'easyupdate-section-title' }, _('Release Notes')),
-					this.nodes.release,
-					E('div', { 'class': 'easyupdate-actions' }, [
-						this.nodes.button,
-						this.nodes.progress,
-						this.nodes.progressText
+					E('div', { 'class': 'easyupdate-block' }, [
+						E('div', { 'class': 'easyupdate-block-title' }, _('Firmware Status')),
+						E('div', { 'class': 'easyupdate-version-grid' }, [
+							E('div', { 'class': 'easyupdate-version-item' }, [
+								E('span', { 'class': 'easyupdate-version-label' }, _('Local Firmware Version')),
+								E('span', { 'class': 'easyupdate-version-value' }, this.state.localVersion || _('Unknown'))
+							]),
+							E('div', { 'class': 'easyupdate-version-item' }, [
+								E('span', { 'class': 'easyupdate-version-label' }, _('Cloud Firmware Version')),
+								this.nodes.cloud
+							])
+						])
 					]),
-					E('div', { 'class': 'easyupdate-section-title' }, _('Update Log')),
-					this.nodes.log
+					E('div', { 'class': 'easyupdate-block' }, [
+						E('div', { 'class': 'easyupdate-block-title' }, _('Release Notes')),
+						this.nodes.release
+					]),
+					E('div', { 'class': 'easyupdate-block' }, [
+						E('div', { 'class': 'easyupdate-actions' }, [
+							this.nodes.button,
+							this.nodes.progress,
+							this.nodes.progressText
+						])
+					]),
+					E('div', { 'class': 'easyupdate-block' }, [
+						E('div', { 'class': 'easyupdate-block-title' }, _('Update Log')),
+						this.nodes.log
+					])
 				])
 			])
 		]);
+	},
+
+	saveSettings: function() {
+		var self = this;
+
+		uci.set('easyupdate', 'main', 'mirror', this.nodes.mirror ? this.nodes.mirror.value.trim() : '');
+		uci.set('easyupdate', 'main', 'keepconfig', this.nodes.keepconfig && this.nodes.keepconfig.checked ? '1' : '0');
+		uci.set('easyupdate', 'main', 'forceflash', this.nodes.forceflash && this.nodes.forceflash.checked ? '1' : '0');
+
+		if (this.nodes.saveStatus)
+			this.nodes.saveStatus.textContent = _('Saving...');
+
+		return uci.save().then(function() {
+			if (self.nodes.saveStatus)
+				self.nodes.saveStatus.textContent = _('Settings saved');
+
+			window.clearTimeout(self.saveStatusTimer);
+			self.saveStatusTimer = window.setTimeout(function() {
+				if (self.nodes.saveStatus)
+					self.nodes.saveStatus.textContent = '';
+			}, 2000);
+		}).catch(function(err) {
+			var message = err && err.message ? err.message : err;
+
+			if (self.nodes.saveStatus)
+				self.nodes.saveStatus.textContent = _('Save failed');
+
+			ui.addNotification(null, E('p', {}, _('Save failed') + ': ' + message), 'danger');
+		});
 	},
 
 	exec: function(command, args) {
@@ -269,7 +338,7 @@ return view.extend({
 	},
 
 	assetUrl: function(url) {
-		return String(uci.get('easyupdate', 'main', 'mirror') || '') + url;
+		return String(this.nodes.mirror ? this.nodes.mirror.value.trim() : (uci.get('easyupdate', 'main', 'mirror') || '')) + url;
 	},
 
 	refreshRelease: function() {
@@ -533,10 +602,10 @@ return view.extend({
 		if (!window.confirm(_('The firmware is being upgraded, please wait. DO NOT power off the device!')))
 			return;
 
-		if (uci.get('easyupdate', 'main', 'forceflash') === '1')
+		if (this.nodes.forceflash && this.nodes.forceflash.checked)
 			args.push('-F');
 
-		if (uci.get('easyupdate', 'main', 'keepconfig') !== '1')
+		if (!this.nodes.keepconfig || !this.nodes.keepconfig.checked)
 			args.push('-n');
 
 		args.push(filePath(file));
