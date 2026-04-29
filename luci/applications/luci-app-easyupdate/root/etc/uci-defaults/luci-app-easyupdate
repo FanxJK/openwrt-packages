@@ -1,8 +1,10 @@
 #!/bin/sh
 
 uci -q batch <<-EOF >/dev/null
+	delete easyupdate.main.github
 	delete ucitrack.@easyupdate[-1]
 	add ucitrack easyupdate
+	commit easyupdate
 	commit ucitrack
 EOF
 

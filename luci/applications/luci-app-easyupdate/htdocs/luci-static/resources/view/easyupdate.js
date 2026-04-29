@@ -9,7 +9,9 @@ var TMP_DIR = '/tmp/easyupdate';
 var MARKER_FILE = TMP_DIR + '/firmware_filename';
 var LOG_FILE = TMP_DIR + '/curl.log';
 var PID_FILE = TMP_DIR + '/download.pid';
-var DEFAULT_GITHUB = 'https://github.com/FanxJK/OpenWrt-x86_64-Actions';
+var FIRMWARE_REPO_OWNER = 'FanxJK';
+var FIRMWARE_REPO_NAME = 'OpenWrt-x86_64-Actions';
+var FIRMWARE_REPO_URL = 'https://github.com/' + FIRMWARE_REPO_OWNER + '/' + FIRMWARE_REPO_NAME;
 
 function normalizeFilename(name) {
 	var match = String(name || '').replace(/[\r\n]/g, '').trim().match(/([A-Za-z0-9._-]+\.img\.gz)$/);
@@ -26,18 +28,6 @@ function filePath(name) {
 
 function shaPath(name) {
 	return filePath(name) + '.sha256';
-}
-
-function parseGithubRepo(value) {
-	var match = String(value || '').trim().match(/^https?:\/\/github\.com\/([^\/\s]+)\/([^\/#?\s]+)(?:[\/#?].*)?$/);
-
-	if (!match)
-		return null;
-
-	return {
-		owner: match[1],
-		repo: match[2].replace(/\.git$/, '')
-	};
 }
 
 function versionTime(value) {
@@ -120,7 +110,7 @@ return view.extend({
 		var m = new form.Map('easyupdate', _('EasyUpdate'),
 			_('EasyUpdate supports one-click firmware upgrade.') + '<br />' +
 			_('Update may cause restart failure, please proceed with caution.') + '<br /><br />' +
-			'<a href="https://github.com/FanxJK/OpenWrt-x86_64-Actions" target="_blank" rel="noreferrer noopener">Powered by Fanx</a>');
+			'<a href="' + FIRMWARE_REPO_URL + '" target="_blank" rel="noreferrer noopener">Powered by Fanx</a>');
 		var s = m.section(form.NamedSection, 'main', 'easyupdate');
 		var self = this;
 		var o;
@@ -139,13 +129,6 @@ return view.extend({
 
 		s.anonymous = true;
 
-		o = s.option(form.Value, 'github', _('Github project address'));
-		o.default = DEFAULT_GITHUB;
-		o.rmempty = false;
-		o.validate = function(sectionId, value) {
-			return parseGithubRepo(value) ? true : _('Invalid GitHub repository URL');
-		};
-
 		o = s.option(form.Value, 'mirror', _('Mirror Url'), _('Once configured, the mirror URL will be used when accessing Github release assets.'));
 		o.default = '';
 		o.placeholder = '';
@@ -159,12 +142,9 @@ return view.extend({
 		o.default = '0';
 		o.rmempty = false;
 
-		o = s.option(form.DummyValue, '_easyupdate', _('Firmware Upgrade'));
-		o.render = function() {
-			return self.renderPanel();
-		};
-
 		return m.render().then(function(node) {
+			node.appendChild(self.renderPanel());
+
 			window.setTimeout(function() {
 				self.refreshRelease();
 			}, 0);
@@ -174,42 +154,77 @@ return view.extend({
 	},
 
 	renderPanel: function() {
-		this.nodes.cloud = E('span', _('Collecting data...'));
-		this.nodes.release = E('pre', {
-			style: 'white-space: pre-wrap; max-height: 350px; overflow-y: auto; padding: 8px; border: 1px solid #ddd; background: #f9f9f9; border-radius: 4px;'
-		}, _('Collecting data...'));
-		this.nodes.progressBar = E('div', {
-			style: 'height: 100%; width: 0%; background: #0069d9; transition: width .2s;'
-		});
+		this.nodes.cloud = E('span', { 'class': 'easyupdate-version-value' }, _('Collecting data...'));
+		this.nodes.release = E('pre', { 'class': 'easyupdate-release' }, _('Collecting data...'));
+		this.nodes.progressBar = E('div', { 'class': 'easyupdate-progress-bar' });
 		this.nodes.progress = E('div', {
-			style: 'height: 18px; width: 100%; border: 1px solid #ccc; background: #f5f5f5; margin-top: 8px; display: none;'
+			'class': 'easyupdate-progress',
+			style: 'display: none;'
 		}, this.nodes.progressBar);
 		this.nodes.progressText = E('div', {
-			style: 'margin-top: 4px; display: none;'
+			'class': 'easyupdate-progress-text',
+			style: 'display: none;'
 		}, '');
 		this.nodes.button = E('button', {
-			'class': 'cbi-button cbi-button-reload',
+			'class': 'cbi-button cbi-button-action easyupdate-button',
 			type: 'button',
 			disabled: 'disabled',
 			click: this.handleAction.bind(this)
 		}, _('Collecting data...'));
 		this.nodes.log = E('textarea', {
-			'class': 'cbi-input-textarea',
+			'class': 'cbi-input-textarea easyupdate-log',
 			readonly: 'readonly',
-			style: 'width: 100% !important; height: 220px; margin-top: 10px; display: none;'
+			style: 'display: none;'
 		});
 
-		return E('div', { 'class': 'cbi-section' }, [
-			E('div', { 'class': 'cbi-value-description firmware-info' }, [
-				E('p', {}, [ _('Local Firmware Version') + ': ', this.state.localVersion || _('Unknown') ]),
-				E('p', {}, [ _('Cloud Firmware Version') + ': ', this.nodes.cloud ]),
-				this.nodes.release
-			]),
-			E('div', { style: 'margin-top: 12px;' }, [
-				this.nodes.button,
-				this.nodes.progress,
-				this.nodes.progressText,
-				this.nodes.log
+		return E('div', { 'class': 'easyupdate-wrap' }, [
+			E('style', {}, [
+				'.easyupdate-wrap{max-width:980px;margin:24px auto 0;padding:0 12px}',
+				'.easyupdate-card{border:1px solid rgba(127,127,127,.18);border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(127,127,127,.04));box-shadow:0 10px 30px rgba(0,0,0,.08);overflow:hidden}',
+				'.easyupdate-hero{padding:26px 28px;text-align:center;background:linear-gradient(135deg,rgba(0,123,255,.16),rgba(0,180,120,.10))}',
+				'.easyupdate-title{margin:0;font-size:24px;font-weight:700}',
+				'.easyupdate-subtitle{margin:8px auto 0;max-width:680px;opacity:.78;line-height:1.6}',
+				'.easyupdate-body{padding:24px 28px}',
+				'.easyupdate-version-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:18px}',
+				'.easyupdate-version-item{padding:16px;border:1px solid rgba(127,127,127,.16);border-radius:14px;background:rgba(127,127,127,.06);text-align:center}',
+				'.easyupdate-version-label{display:block;margin-bottom:8px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;opacity:.62}',
+				'.easyupdate-version-value{font-size:16px;font-weight:700;word-break:break-word}',
+				'.easyupdate-section-title{margin:22px 0 10px;font-size:15px;font-weight:700}',
+				'.easyupdate-release{box-sizing:border-box;width:100%;min-height:120px;max-height:340px;overflow:auto;margin:0;padding:16px;border:1px solid rgba(127,127,127,.16);border-radius:14px;background:rgba(0,0,0,.035);white-space:pre-wrap;line-height:1.55}',
+				'.easyupdate-actions{margin-top:22px;text-align:center}',
+				'.easyupdate-button{min-width:210px;padding:10px 24px!important;border-radius:999px!important;font-weight:700!important}',
+				'.easyupdate-progress{height:18px;margin:18px auto 0;max-width:680px;border-radius:999px;background:rgba(127,127,127,.18);overflow:hidden}',
+				'.easyupdate-progress-bar{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,#0d6efd,#20c997);transition:width .25s ease}',
+				'.easyupdate-progress-text{margin-top:8px;text-align:center;font-weight:600}',
+				'.easyupdate-log{box-sizing:border-box;width:100%!important;height:220px;margin-top:12px;border-radius:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}',
+				'@media (max-width:700px){.easyupdate-version-grid{grid-template-columns:1fr}.easyupdate-hero,.easyupdate-body{padding:20px}.easyupdate-title{font-size:21px}}'
+			].join('\n')),
+			E('div', { 'class': 'easyupdate-card' }, [
+				E('div', { 'class': 'easyupdate-hero' }, [
+					E('h2', { 'class': 'easyupdate-title' }, _('Firmware Update')),
+					E('p', { 'class': 'easyupdate-subtitle' }, _('Check the latest firmware, download it with progress, verify integrity, and upgrade from this page.'))
+				]),
+				E('div', { 'class': 'easyupdate-body' }, [
+					E('div', { 'class': 'easyupdate-version-grid' }, [
+						E('div', { 'class': 'easyupdate-version-item' }, [
+							E('span', { 'class': 'easyupdate-version-label' }, _('Local Firmware Version')),
+							E('span', { 'class': 'easyupdate-version-value' }, this.state.localVersion || _('Unknown'))
+						]),
+						E('div', { 'class': 'easyupdate-version-item' }, [
+							E('span', { 'class': 'easyupdate-version-label' }, _('Cloud Firmware Version')),
+							this.nodes.cloud
+						])
+					]),
+					E('div', { 'class': 'easyupdate-section-title' }, _('Release Notes')),
+					this.nodes.release,
+					E('div', { 'class': 'easyupdate-actions' }, [
+						this.nodes.button,
+						this.nodes.progress,
+						this.nodes.progressText
+					]),
+					E('div', { 'class': 'easyupdate-section-title' }, _('Update Log')),
+					this.nodes.log
+				])
 			])
 		]);
 	},
@@ -258,18 +273,14 @@ return view.extend({
 	},
 
 	refreshRelease: function() {
-		var repo = parseGithubRepo(uci.get('easyupdate', 'main', 'github') || DEFAULT_GITHUB);
 		var self = this;
 
 		this.setAction(null, _('Collecting data...'), true);
 		this.setProgress(0, 0);
 		this.appendLog(_('Checking cloud firmware version...'));
 
-		if (!repo)
-			return this.fail(_('Invalid GitHub repository URL'));
-
 		return this.ensureTmpDir().then(function() {
-			return self.curl('https://api.github.com/repos/' + repo.owner + '/' + repo.repo + '/releases/latest');
+			return self.curl('https://api.github.com/repos/' + FIRMWARE_REPO_OWNER + '/' + FIRMWARE_REPO_NAME + '/releases/latest');
 		}).then(function(res) {
 			var release;
 			var asset;
