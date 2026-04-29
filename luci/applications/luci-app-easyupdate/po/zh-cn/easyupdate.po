@@ -23,7 +23,7 @@ msgid "Mirror Url"
 msgstr "镜像网址"
 
 msgid "Once configured, the mirror URL will be used when accessing Github release assets."
-msgstr "配置后，访问 Github 发布资源时将使用该镜像网址。"
+msgstr "配置后，访问 Github 下载固件时将使用该镜像网址。"
 
 msgid "KEEP CONFIG"
 msgstr "保留配置"

@@ -168,41 +168,39 @@ return view.extend({
 
 		return E('div', { 'class': 'cbi-map easyupdate-map' }, [
 			E('style', {}, [
-				'.easyupdate-map{max-width:none;margin:0}',
-				'.easyupdate-map .cbi-map-descr{line-height:1.6;margin-bottom:18px}',
-				'.easyupdate-map .cbi-section{padding:22px 24px;margin-top:18px}',
+					'.easyupdate-map{max-width:none;margin:0}',
+					'.easyupdate-map .cbi-map-descr{line-height:1.6;margin-bottom:18px}',
+					'.easyupdate-map .cbi-section{padding:22px 24px;margin-top:18px}',
 					'.easyupdate-map .cbi-section h3{margin-top:0;margin-bottom:18px}',
-					'.easyupdate-setting-row{display:grid;grid-template-columns:1fr 240px 240px;gap:20px;align-items:stretch}',
-				'.easyupdate-setting-box{min-width:0;padding:14px 16px;border:1px solid rgba(127,127,127,.14);border-radius:4px;background:rgba(127,127,127,.035)}',
-				'.easyupdate-setting-box label{font-weight:600}',
-				'.easyupdate-setting-help{display:block;margin-top:8px;opacity:.68;line-height:1.45}',
-				'.easyupdate-map .cbi-input-text{box-sizing:border-box;width:100%;max-width:520px;margin-top:8px}',
-				'.easyupdate-check{display:flex;align-items:center;gap:10px;min-height:34px}',
-				'.easyupdate-version-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}',
-				'.easyupdate-version-item{padding:18px 20px;border:1px solid rgba(127,127,127,.18);border-radius:4px;background:rgba(127,127,127,.04)}',
-				'.easyupdate-version-label{display:block;margin-bottom:8px;opacity:.7}',
-				'.easyupdate-version-value{font-weight:700;word-break:break-word}',
-				'.easyupdate-release{box-sizing:border-box;width:100%;min-height:150px;max-height:360px;overflow:auto;margin:0;padding:14px 16px;white-space:pre-wrap;line-height:1.6}',
-				'.easyupdate-actions{text-align:center;padding-top:4px;padding-bottom:4px}',
-				'.easyupdate-button{min-width:200px}',
-				'.easyupdate-progress{height:16px;margin:18px auto 0;max-width:680px;border-radius:3px;background:rgba(127,127,127,.18);overflow:hidden}',
-				'.easyupdate-progress-bar{height:100%;width:0%;background:#0069d9;transition:width .25s ease}',
-				'.easyupdate-progress-text{margin-top:10px;text-align:center;font-weight:600}',
-				'.easyupdate-log{box-sizing:border-box;width:100%!important;height:240px;margin-top:0;padding:12px 14px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}',
-				'@media (max-width:900px){.easyupdate-setting-row,.easyupdate-version-grid{grid-template-columns:1fr}.easyupdate-map .cbi-section{padding:18px}}'
+					'.easyupdate-setting-row,.easyupdate-version-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;align-items:stretch}',
+					'.easyupdate-setting-box,.easyupdate-version-item{min-width:0;padding:16px 18px;border:1px solid rgba(127,127,127,.14);border-radius:4px;background:rgba(127,127,127,.035)}',
+					'.easyupdate-setting-label{display:block;margin-bottom:12px;font-weight:600}',
+					'.easyupdate-setting-box label{font-weight:600}',
+					'.easyupdate-setting-help{display:block;margin-top:8px;opacity:.68;line-height:1.45}',
+					'.easyupdate-map .cbi-input-text{box-sizing:border-box;width:100%;max-width:360px}',
+					'.easyupdate-check{display:flex!important;align-items:center;gap:10px;min-height:34px;margin-bottom:0}',
+					'.easyupdate-version-label{display:block;margin-bottom:8px;opacity:.7}',
+					'.easyupdate-version-value{font-weight:700;word-break:break-word}',
+					'.easyupdate-release{box-sizing:border-box;width:100%;min-height:150px;max-height:360px;overflow:auto;margin:0;padding:14px 16px;white-space:pre-wrap;line-height:1.6}',
+					'.easyupdate-actions{text-align:center;padding-top:4px;padding-bottom:4px}',
+					'.easyupdate-button{min-width:200px}',
+					'.easyupdate-progress{height:16px;margin:18px auto 0;max-width:680px;border-radius:3px;background:rgba(127,127,127,.18);overflow:hidden}',
+					'.easyupdate-progress-bar{height:100%;width:0%;background:#0069d9;transition:width .25s ease}',
+					'.easyupdate-progress-text{margin-top:10px;text-align:center;font-weight:600}',
+					'.easyupdate-log{box-sizing:border-box;width:100%!important;height:240px;margin-top:0;padding:12px 14px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}',
+					'@media (max-width:900px){.easyupdate-setting-row,.easyupdate-version-grid{grid-template-columns:1fr}.easyupdate-map .cbi-section{padding:18px}}'
 			].join('\n')),
 			E('h2', {}, _('Firmware Update')),
 			E('div', { 'class': 'cbi-map-descr' }, [
 				_('Check the latest firmware, adjust upgrade options, download with progress, verify integrity, and upgrade from this page.'),
 				E('br'),
-				_('Firmware Source') + ': ',
-				E('a', { href: FIRMWARE_REPO_URL, target: '_blank', rel: 'noreferrer noopener' }, FIRMWARE_REPO_OWNER + '/' + FIRMWARE_REPO_NAME)
+				E('a', { href: FIRMWARE_REPO_URL, target: '_blank', rel: 'noreferrer noopener' }, 'Powered by Fanx')
 			]),
 			E('div', { 'class': 'cbi-section' }, [
 				E('h3', {}, _('Upgrade Settings')),
 				E('div', { 'class': 'easyupdate-setting-row' }, [
 					E('div', { 'class': 'easyupdate-setting-box' }, [
-						E('label', {}, _('Mirror Url')),
+						E('label', { 'class': 'easyupdate-setting-label' }, _('Mirror Url')),
 						this.nodes.mirror,
 						E('small', { 'class': 'easyupdate-setting-help' }, _('Once configured, the mirror URL will be used when accessing Github release assets.'))
 					]),
@@ -317,6 +315,13 @@ return view.extend({
 		return this.exec('/usr/bin/curl', args);
 	},
 
+	curlText: function(url) {
+		return fs.exec('/usr/bin/curl', [ '-L', '-sS', url ]).then(function(res) {
+			res = res || {};
+			return res.stdout || res.stderr || '';
+		});
+	},
+
 	assetUrl: function(url) {
 		return String(this.nodes.mirror ? this.nodes.mirror.value.trim() : (uci.get('easyupdate', 'main', 'mirror') || '')) + url;
 	},
@@ -329,19 +334,19 @@ return view.extend({
 		this.appendLog(_('Checking cloud firmware version...'));
 
 		return this.ensureTmpDir().then(function() {
-			return self.curl('https://api.github.com/repos/' + FIRMWARE_REPO_OWNER + '/' + FIRMWARE_REPO_NAME + '/releases/latest');
-		}).then(function(res) {
+			return self.curlText('https://api.github.com/repos/' + FIRMWARE_REPO_OWNER + '/' + FIRMWARE_REPO_NAME + '/releases/latest');
+		}).then(function(body) {
 			var release;
 			var asset;
 
 			try {
-				release = JSON.parse(res.stdout || '{}');
+				release = JSON.parse(body || '{}');
 			} catch (e) {
-				throw new Error(_('Failed to parse release information'));
+				throw new Error(body || _('Failed to parse release information'));
 			}
 
 			if (release.message && !release.tag_name)
-				throw new Error(release.message);
+				throw new Error(JSON.stringify(release, null, 2));
 
 			asset = findAsset(release, self.state.isEfi);
 			self.state.release = release;
