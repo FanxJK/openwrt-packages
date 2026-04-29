@@ -1,3 +1,6 @@
+msgid "EasyUpdate"
+msgstr "OTA 更新"
+
 msgid "Optional mirror URL"
 msgstr "可选镜像网址"
 
@@ -5,7 +8,7 @@ msgid "Collecting data..."
 msgstr "正在收集数据..."
 
 msgid "Firmware Update"
-msgstr "固件更新"
+msgstr "OTA 更新"
 
 msgid "Check the latest firmware, adjust upgrade options, download with progress, verify integrity, and upgrade from this page."
 msgstr "在此页面检查最新固件、调整升级选项、查看下载进度、校验完整性并执行升级。"
@@ -51,15 +54,6 @@ msgstr "更新日志"
 
 msgid "Update Log"
 msgstr "操作日志"
-
-msgid "Saving..."
-msgstr "正在保存..."
-
-msgid "Settings saved"
-msgstr "设置已保存"
-
-msgid "Save failed"
-msgstr "保存失败"
 
 msgid "Command failed"
 msgstr "命令执行失败"

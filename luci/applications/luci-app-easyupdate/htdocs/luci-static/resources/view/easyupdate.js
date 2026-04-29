@@ -128,26 +128,21 @@ return view.extend({
 		return node;
 	},
 
-		renderPanel: function() {
+	renderPanel: function() {
 		this.nodes.mirror = E('input', {
-			'class': 'cbi-input-text easyupdate-input',
+			'class': 'cbi-input-text',
 			type: 'text',
 			placeholder: _('Optional mirror URL'),
-			value: uci.get('easyupdate', 'main', 'mirror') || '',
-			change: this.saveSettings.bind(this),
-			blur: this.saveSettings.bind(this)
+			value: uci.get('easyupdate', 'main', 'mirror') || ''
 		});
 		this.nodes.keepconfig = E('input', {
-			type: 'checkbox',
-			checked: uci.get('easyupdate', 'main', 'keepconfig') !== '0',
-			change: this.saveSettings.bind(this)
+			type: 'checkbox'
 		});
+		this.nodes.keepconfig.checked = uci.get('easyupdate', 'main', 'keepconfig') !== '0';
 		this.nodes.forceflash = E('input', {
-			type: 'checkbox',
-			checked: uci.get('easyupdate', 'main', 'forceflash') === '1',
-			change: this.saveSettings.bind(this)
+			type: 'checkbox'
 		});
-		this.nodes.saveStatus = E('span', { 'class': 'easyupdate-save-status' }, '');
+		this.nodes.forceflash.checked = uci.get('easyupdate', 'main', 'forceflash') === '1';
 		this.nodes.cloud = E('span', { 'class': 'easyupdate-version-value' }, _('Collecting data...'));
 		this.nodes.release = E('pre', { 'class': 'easyupdate-release' }, _('Collecting data...'));
 		this.nodes.progressBar = E('div', { 'class': 'easyupdate-progress-bar' });
@@ -171,131 +166,116 @@ return view.extend({
 			style: 'display: none;'
 		});
 
-		return E('div', { 'class': 'easyupdate-page' }, [
+		return E('div', { 'class': 'cbi-map easyupdate-map' }, [
 			E('style', {}, [
-				'.easyupdate-page{max-width:1020px;margin:0 auto;padding:8px 12px 28px}',
-				'.easyupdate-card{border:1px solid rgba(127,127,127,.18);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(127,127,127,.04));box-shadow:0 12px 34px rgba(0,0,0,.10);overflow:hidden}',
-				'.easyupdate-hero{padding:28px;text-align:center;background:linear-gradient(135deg,rgba(0,123,255,.16),rgba(0,180,120,.10))}',
-				'.easyupdate-title{margin:0;font-size:25px;font-weight:800}',
-				'.easyupdate-subtitle{margin:8px auto 0;max-width:720px;opacity:.78;line-height:1.6}',
-				'.easyupdate-body{padding:24px 28px 28px}',
-				'.easyupdate-block{margin-top:20px;padding:18px;border:1px solid rgba(127,127,127,.16);border-radius:16px;background:rgba(127,127,127,.055)}',
-				'.easyupdate-block:first-child{margin-top:0}',
-				'.easyupdate-block-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;font-size:16px;font-weight:800}',
-				'.easyupdate-save-status{font-size:12px;font-weight:600;opacity:.68}',
-				'.easyupdate-settings-grid{display:grid;grid-template-columns:minmax(220px,1.6fr) repeat(2,minmax(160px,.7fr));gap:14px;align-items:stretch}',
-				'.easyupdate-setting{display:flex;flex-direction:column;justify-content:center;gap:8px;padding:14px;border-radius:14px;background:rgba(255,255,255,.05)}',
-				'.easyupdate-setting-label{font-size:13px;font-weight:700}',
-				'.easyupdate-setting-help{font-size:12px;opacity:.66;line-height:1.45}',
-				'.easyupdate-input{box-sizing:border-box;width:100%;min-height:34px;border-radius:10px}',
-				'.easyupdate-switch{display:flex;align-items:center;gap:10px;font-weight:700}',
-				'.easyupdate-switch input{width:18px;height:18px}',
-				'.easyupdate-version-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}',
-				'.easyupdate-version-item{padding:16px;border-radius:14px;background:rgba(255,255,255,.05);text-align:center}',
-				'.easyupdate-version-label{display:block;margin-bottom:8px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;opacity:.62}',
-				'.easyupdate-version-value{font-size:16px;font-weight:800;word-break:break-word}',
-				'.easyupdate-release{box-sizing:border-box;width:100%;min-height:130px;max-height:340px;overflow:auto;margin:0;padding:16px;border:1px solid rgba(127,127,127,.16);border-radius:14px;background:rgba(0,0,0,.035);white-space:pre-wrap;line-height:1.55}',
-				'.easyupdate-actions{margin-top:20px;text-align:center}',
-				'.easyupdate-button{min-width:220px;padding:10px 26px!important;border-radius:999px!important;font-weight:800!important}',
-				'.easyupdate-progress{height:18px;margin:18px auto 0;max-width:700px;border-radius:999px;background:rgba(127,127,127,.18);overflow:hidden}',
-				'.easyupdate-progress-bar{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,#0d6efd,#20c997);transition:width .25s ease}',
-				'.easyupdate-progress-text{margin-top:8px;text-align:center;font-weight:700}',
-				'.easyupdate-log{box-sizing:border-box;width:100%!important;height:220px;margin-top:0;border-radius:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}',
-				'@media (max-width:820px){.easyupdate-settings-grid,.easyupdate-version-grid{grid-template-columns:1fr}.easyupdate-hero,.easyupdate-body{padding:20px}.easyupdate-title{font-size:21px}}'
+				'.easyupdate-map{max-width:none;margin:0}',
+				'.easyupdate-map .cbi-map-descr{line-height:1.6;margin-bottom:18px}',
+				'.easyupdate-map .cbi-section{padding:22px 24px;margin-top:18px}',
+					'.easyupdate-map .cbi-section h3{margin-top:0;margin-bottom:18px}',
+					'.easyupdate-setting-row{display:grid;grid-template-columns:1fr 240px 240px;gap:20px;align-items:stretch}',
+				'.easyupdate-setting-box{min-width:0;padding:14px 16px;border:1px solid rgba(127,127,127,.14);border-radius:4px;background:rgba(127,127,127,.035)}',
+				'.easyupdate-setting-box label{font-weight:600}',
+				'.easyupdate-setting-help{display:block;margin-top:8px;opacity:.68;line-height:1.45}',
+				'.easyupdate-map .cbi-input-text{box-sizing:border-box;width:100%;max-width:520px;margin-top:8px}',
+				'.easyupdate-check{display:flex;align-items:center;gap:10px;min-height:34px}',
+				'.easyupdate-version-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}',
+				'.easyupdate-version-item{padding:18px 20px;border:1px solid rgba(127,127,127,.18);border-radius:4px;background:rgba(127,127,127,.04)}',
+				'.easyupdate-version-label{display:block;margin-bottom:8px;opacity:.7}',
+				'.easyupdate-version-value{font-weight:700;word-break:break-word}',
+				'.easyupdate-release{box-sizing:border-box;width:100%;min-height:150px;max-height:360px;overflow:auto;margin:0;padding:14px 16px;white-space:pre-wrap;line-height:1.6}',
+				'.easyupdate-actions{text-align:center;padding-top:4px;padding-bottom:4px}',
+				'.easyupdate-button{min-width:200px}',
+				'.easyupdate-progress{height:16px;margin:18px auto 0;max-width:680px;border-radius:3px;background:rgba(127,127,127,.18);overflow:hidden}',
+				'.easyupdate-progress-bar{height:100%;width:0%;background:#0069d9;transition:width .25s ease}',
+				'.easyupdate-progress-text{margin-top:10px;text-align:center;font-weight:600}',
+				'.easyupdate-log{box-sizing:border-box;width:100%!important;height:240px;margin-top:0;padding:12px 14px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}',
+				'@media (max-width:900px){.easyupdate-setting-row,.easyupdate-version-grid{grid-template-columns:1fr}.easyupdate-map .cbi-section{padding:18px}}'
 			].join('\n')),
-			E('div', { 'class': 'easyupdate-card' }, [
-				E('div', { 'class': 'easyupdate-hero' }, [
-					E('h2', { 'class': 'easyupdate-title' }, _('Firmware Update')),
-					E('p', { 'class': 'easyupdate-subtitle' }, _('Check the latest firmware, adjust upgrade options, download with progress, verify integrity, and upgrade from this page.')),
-					E('p', { 'class': 'easyupdate-subtitle' }, [
-						_('Firmware Source') + ': ',
-						E('a', { href: FIRMWARE_REPO_URL, target: '_blank', rel: 'noreferrer noopener' }, FIRMWARE_REPO_OWNER + '/' + FIRMWARE_REPO_NAME)
-					])
-				]),
-				E('div', { 'class': 'easyupdate-body' }, [
-					E('div', { 'class': 'easyupdate-block' }, [
-						E('div', { 'class': 'easyupdate-block-title' }, [
-							E('span', {}, _('Upgrade Settings')),
-							this.nodes.saveStatus
-						]),
-						E('div', { 'class': 'easyupdate-settings-grid' }, [
-							E('label', { 'class': 'easyupdate-setting' }, [
-								E('span', { 'class': 'easyupdate-setting-label' }, _('Mirror Url')),
-								this.nodes.mirror,
-								E('span', { 'class': 'easyupdate-setting-help' }, _('Once configured, the mirror URL will be used when accessing Github release assets.'))
-							]),
-							E('label', { 'class': 'easyupdate-setting easyupdate-switch' }, [
-								this.nodes.keepconfig,
-								E('span', {}, _('KEEP CONFIG')),
-								E('span', { 'class': 'easyupdate-setting-help' }, _('When selected, configuration is retained when firmware upgrade.'))
-							]),
-							E('label', { 'class': 'easyupdate-setting easyupdate-switch' }, [
-								this.nodes.forceflash,
-								E('span', {}, _('Preference Force Flashing')),
-								E('span', { 'class': 'easyupdate-setting-help' }, _('When selected, Preference Force Flashing while firmware upgrading.'))
-							])
-						])
+			E('h2', {}, _('Firmware Update')),
+			E('div', { 'class': 'cbi-map-descr' }, [
+				_('Check the latest firmware, adjust upgrade options, download with progress, verify integrity, and upgrade from this page.'),
+				E('br'),
+				_('Firmware Source') + ': ',
+				E('a', { href: FIRMWARE_REPO_URL, target: '_blank', rel: 'noreferrer noopener' }, FIRMWARE_REPO_OWNER + '/' + FIRMWARE_REPO_NAME)
+			]),
+			E('div', { 'class': 'cbi-section' }, [
+				E('h3', {}, _('Upgrade Settings')),
+				E('div', { 'class': 'easyupdate-setting-row' }, [
+					E('div', { 'class': 'easyupdate-setting-box' }, [
+						E('label', {}, _('Mirror Url')),
+						this.nodes.mirror,
+						E('small', { 'class': 'easyupdate-setting-help' }, _('Once configured, the mirror URL will be used when accessing Github release assets.'))
 					]),
-					E('div', { 'class': 'easyupdate-block' }, [
-						E('div', { 'class': 'easyupdate-block-title' }, _('Firmware Status')),
-						E('div', { 'class': 'easyupdate-version-grid' }, [
-							E('div', { 'class': 'easyupdate-version-item' }, [
-								E('span', { 'class': 'easyupdate-version-label' }, _('Local Firmware Version')),
-								E('span', { 'class': 'easyupdate-version-value' }, this.state.localVersion || _('Unknown'))
-							]),
-							E('div', { 'class': 'easyupdate-version-item' }, [
-								E('span', { 'class': 'easyupdate-version-label' }, _('Cloud Firmware Version')),
-								this.nodes.cloud
-							])
-						])
+					E('div', { 'class': 'easyupdate-setting-box' }, [
+						E('label', { 'class': 'easyupdate-check' }, [ this.nodes.keepconfig, _('KEEP CONFIG') ]),
+						E('small', { 'class': 'easyupdate-setting-help' }, _('When selected, configuration is retained when firmware upgrade.'))
 					]),
-					E('div', { 'class': 'easyupdate-block' }, [
-						E('div', { 'class': 'easyupdate-block-title' }, _('Release Notes')),
-						this.nodes.release
-					]),
-					E('div', { 'class': 'easyupdate-block' }, [
-						E('div', { 'class': 'easyupdate-actions' }, [
-							this.nodes.button,
-							this.nodes.progress,
-							this.nodes.progressText
-						])
-					]),
-					E('div', { 'class': 'easyupdate-block' }, [
-						E('div', { 'class': 'easyupdate-block-title' }, _('Update Log')),
-						this.nodes.log
+					E('div', { 'class': 'easyupdate-setting-box' }, [
+						E('label', { 'class': 'easyupdate-check' }, [ this.nodes.forceflash, _('Preference Force Flashing') ]),
+						E('small', { 'class': 'easyupdate-setting-help' }, _('When selected, Preference Force Flashing while firmware upgrading.'))
 					])
 				])
+			]),
+			E('div', { 'class': 'cbi-section' }, [
+				E('h3', {}, _('Firmware Status')),
+				E('div', { 'class': 'easyupdate-version-grid' }, [
+					E('div', { 'class': 'easyupdate-version-item' }, [
+						E('span', { 'class': 'easyupdate-version-label' }, _('Local Firmware Version')),
+						E('span', { 'class': 'easyupdate-version-value' }, this.state.localVersion || _('Unknown'))
+					]),
+					E('div', { 'class': 'easyupdate-version-item' }, [
+						E('span', { 'class': 'easyupdate-version-label' }, _('Cloud Firmware Version')),
+						this.nodes.cloud
+					])
+				])
+			]),
+			E('div', { 'class': 'cbi-section' }, [
+				E('h3', {}, _('Release Notes')),
+				this.nodes.release
+			]),
+			E('div', { 'class': 'cbi-section easyupdate-actions' }, [
+				this.nodes.button,
+				this.nodes.progress,
+				this.nodes.progressText
+			]),
+			E('div', { 'class': 'cbi-section' }, [
+				E('h3', {}, _('Update Log')),
+				this.nodes.log
 			])
 		]);
 	},
 
 	saveSettings: function() {
-		var self = this;
-
 		uci.set('easyupdate', 'main', 'mirror', this.nodes.mirror ? this.nodes.mirror.value.trim() : '');
 		uci.set('easyupdate', 'main', 'keepconfig', this.nodes.keepconfig && this.nodes.keepconfig.checked ? '1' : '0');
 		uci.set('easyupdate', 'main', 'forceflash', this.nodes.forceflash && this.nodes.forceflash.checked ? '1' : '0');
 
-		if (this.nodes.saveStatus)
-			this.nodes.saveStatus.textContent = _('Saving...');
+		return uci.save();
+	},
 
-		return uci.save().then(function() {
-			if (self.nodes.saveStatus)
-				self.nodes.saveStatus.textContent = _('Settings saved');
+	handleSaveApply: function(ev) {
+		return this.saveSettings().then(L.bind(function() {
+			return this.super('handleSaveApply', [ ev ]);
+		}, this));
+	},
 
-			window.clearTimeout(self.saveStatusTimer);
-			self.saveStatusTimer = window.setTimeout(function() {
-				if (self.nodes.saveStatus)
-					self.nodes.saveStatus.textContent = '';
-			}, 2000);
-		}).catch(function(err) {
-			var message = err && err.message ? err.message : err;
+	handleSave: function(ev) {
+		return this.saveSettings().then(L.bind(function() {
+			return this.super('handleSave', [ ev ]);
+		}, this));
+	},
 
-			if (self.nodes.saveStatus)
-				self.nodes.saveStatus.textContent = _('Save failed');
+	handleReset: function(ev) {
+		if (this.nodes.mirror)
+			this.nodes.mirror.value = uci.get('easyupdate', 'main', 'mirror') || '';
 
-			ui.addNotification(null, E('p', {}, _('Save failed') + ': ' + message), 'danger');
-		});
+		if (this.nodes.keepconfig)
+			this.nodes.keepconfig.checked = uci.get('easyupdate', 'main', 'keepconfig') !== '0';
+
+		if (this.nodes.forceflash)
+			this.nodes.forceflash.checked = uci.get('easyupdate', 'main', 'forceflash') === '1';
+
+		return this.super('handleReset', [ ev ]);
 	},
 
 	exec: function(command, args) {
