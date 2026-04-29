@@ -139,8 +139,20 @@ msgstr "固件完整性检查"
 msgid "Invalid filename"
 msgstr "无效的文件名"
 
-msgid "The firmware is being upgraded, please wait. DO NOT power off the device!"
-msgstr "固件正在升级中，请稍候。请勿断开电源！"
+msgid "Confirm Firmware Upgrade"
+msgstr "确认固件升级"
+
+msgid "This will start the firmware upgrade immediately. The router will reboot after the upgrade begins."
+msgstr "确认后将立即开始固件升级，升级开始后路由器会自动重启。"
+
+msgid "Do not power off the device during the upgrade."
+msgstr "升级过程中请勿断电，"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Confirm Upgrade"
+msgstr "确认升级"
 
 msgid "Firmware Upgrading"
 msgstr "固件升级中"
@@ -148,11 +160,11 @@ msgstr "固件升级中"
 msgid "Start flash firmware"
 msgstr "开始刷写固件"
 
-msgid "The firmware is being upgraded, please wait..."
-msgstr "固件正在升级中，请稍候..."
+msgid "The firmware upgrade has started. Please wait for the router to reboot."
+msgstr "固件升级已经开始，请等待路由器重启。"
 
-msgid "DO NOT power off the device!"
-msgstr "请勿断开电源！"
+msgid "Do not power off the device."
+msgstr "请勿断开电源。"
 
 msgid "Retry Firmware Upgrade"
 msgstr "重试固件升级"

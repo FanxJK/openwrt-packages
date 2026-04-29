@@ -573,14 +573,32 @@ return view.extend({
 
 	flashFirmware: function() {
 		var file = normalizeFilename(this.state.fileName);
-		var args = [];
-		var self = this;
 
 		if (!file)
 			return this.fail(_('Invalid filename'));
 
-		if (!window.confirm(_('The firmware is being upgraded, please wait. DO NOT power off the device!')))
-			return;
+		ui.showModal(_('Confirm Firmware Upgrade'), [
+			E('p', {}, _('This will start the firmware upgrade immediately. The router will reboot after the upgrade begins.')),
+			E('p', { style: 'color: #e53935; font-weight: bold;' }, _('Do not power off the device during the upgrade.')),
+			E('div', { 'class': 'right' }, [
+				E('button', {
+					'class': 'btn cbi-button cbi-button-neutral',
+					click: ui.hideModal
+				}, _('Cancel')),
+				' ',
+				E('button', {
+					'class': 'btn cbi-button cbi-button-action important',
+					click: this.startFlashFirmware.bind(this, file)
+				}, _('Confirm Upgrade'))
+			])
+		]);
+	},
+
+	startFlashFirmware: function(file) {
+		var args = [];
+		var self = this;
+
+		ui.hideModal();
 
 		if (this.nodes.forceflash && this.nodes.forceflash.checked)
 			args.push('-F');
@@ -592,8 +610,8 @@ return view.extend({
 		this.setAction(null, _('Firmware Upgrading'), true);
 		this.appendLog(_('Start flash firmware'));
 		ui.showModal(_('Firmware Upgrading'), [
-			E('p', {}, _('The firmware is being upgraded, please wait...')),
-			E('p', { style: 'color: #e53935; font-weight: bold;' }, _('DO NOT power off the device!'))
+			E('p', {}, _('The firmware upgrade has started. Please wait for the router to reboot.')),
+			E('p', { style: 'color: #e53935; font-weight: bold;' }, _('Do not power off the device.'))
 		]);
 
 		return this.exec('/sbin/start-stop-daemon', [ '-S', '-b', '-x', '/sbin/sysupgrade', '--' ].concat(args)).catch(function(err) {
