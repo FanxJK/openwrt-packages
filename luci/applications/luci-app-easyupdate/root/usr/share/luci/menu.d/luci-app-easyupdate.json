@@ -1,0 +1,13 @@
+{
+  "admin/services/easyupdate": {
+    "title": "EasyUpdate",
+    "order": 99,
+    "action": {
+      "type": "view",
+      "path": "easyupdate"
+    },
+    "depends": {
+      "acl": [ "luci-app-easyupdate" ]
+    }
+  }
+}

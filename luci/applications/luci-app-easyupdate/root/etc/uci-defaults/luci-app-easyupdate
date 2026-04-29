@@ -3,9 +3,12 @@
 uci -q batch <<-EOF >/dev/null
 	delete ucitrack.@easyupdate[-1]
 	add ucitrack easyupdate
-	set ucitrack.@easyupdate[-1].init=easyupdate
 	commit ucitrack
 EOF
+
+if [ -f /etc/crontabs/root ]; then
+	sed -i '/\/usr\/bin\/easyupdate\.sh -u # EasyUpdate/d' /etc/crontabs/root
+fi
 
 rm -f /tmp/luci-indexcache
 exit 0

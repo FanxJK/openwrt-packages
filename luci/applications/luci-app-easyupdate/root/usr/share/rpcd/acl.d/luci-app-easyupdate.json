@@ -1,11 +1,37 @@
 {
-	"luci-app-easyupdate": {
-		"description": "Grant UCI access for luci-app-easyupdate",
-		"read": {
-			"uci": [ "easyupdate" ]
-		},
-		"write": {
-			"uci": [ "easyupdate" ]
-		}
-	}
+  "luci-app-easyupdate": {
+    "description": "Grant UCI, file and command access for luci-app-easyupdate",
+    "read": {
+      "file": {
+        "/bin/kill": [ "exec" ],
+        "/bin/mkdir": [ "exec" ],
+        "/bin/sha256sum": [ "exec" ],
+        "/etc/openwrt_release": [ "read" ],
+        "/sbin/start-stop-daemon": [ "exec" ],
+        "/sbin/sysupgrade": [ "exec" ],
+        "/sys/firmware/efi": [ "list", "read", "stat" ],
+        "/tmp/easyupdate": [ "list", "read", "stat" ],
+        "/tmp/easyupdate/*": [ "list", "read", "stat" ],
+        "/usr/bin/curl": [ "exec" ],
+        "/usr/bin/sha256sum": [ "exec" ]
+      },
+      "uci": [ "easyupdate" ]
+    },
+    "write": {
+      "file": {
+        "/tmp/easyupdate": [ "write" ],
+        "/tmp/easyupdate/*": [ "write" ]
+      },
+      "uci": [ "easyupdate" ]
+    },
+    "exec": {
+      "/bin/kill": [ "*" ],
+      "/bin/mkdir": [ "*" ],
+      "/bin/sha256sum": [ "*" ],
+      "/sbin/start-stop-daemon": [ "*" ],
+      "/sbin/sysupgrade": [ "*" ],
+      "/usr/bin/curl": [ "*" ],
+      "/usr/bin/sha256sum": [ "*" ]
+    }
+  }
 }
