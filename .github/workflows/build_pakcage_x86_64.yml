@@ -31,6 +31,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache OpenWrt SDK
+        uses: actions/cache@v5
+        with:
+          path: |
+            /opt/openwrt-sdk-x86_64-openwrt-25.12
+            dl
+          key: openwrt-sdk-x86_64-openwrt-25.12-${{ hashFiles('.github/workflows/build_pakcage_x86_64.yml') }}
+          restore-keys: |
+            openwrt-sdk-x86_64-openwrt-25.12-
+
       - name: Build packages
         uses: openwrt/gh-action-sdk@main
         env:
