@@ -134,14 +134,20 @@ return view.extend({
 		};
 
 		if (updateAvailable(currentVersion, latestVersion)) {
-			var update = s.option(form.Button, '_online_update', _('Online Update'));
-			update.inputtitle = _('Update Now');
-			update.inputstyle = 'apply';
-			update.render = function(sectionId) {
-				return Promise.resolve(form.Button.prototype.render.apply(this, [ sectionId ])).then(function(node) {
-					node.style.margin = '12px 0 10px 0';
-					return node;
-				});
+			var update = s.option(form.DummyValue, '_online_update', _('Online Update'));
+			update.render = function() {
+				return E('div', { 'class': 'cbi-value', style: 'margin: 12px 0 10px 0;' }, [
+					E('label', { 'class': 'cbi-value-title' }, _('Online Update')),
+					E('div', { 'class': 'cbi-value-field' }, [
+						E('button', {
+							'class': 'btn cbi-button cbi-button-apply',
+							type: 'button',
+							click: function(ev) {
+								return update.onclick('config', ev);
+							}
+						}, _('Update Now'))
+					])
+				]);
 			};
 			update.onclick = function(sectionId, ev) {
 				var button = ev && ev.currentTarget;
