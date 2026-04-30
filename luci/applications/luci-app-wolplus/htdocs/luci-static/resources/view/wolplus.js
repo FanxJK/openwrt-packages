@@ -203,6 +203,19 @@ return view.extend({
 		var onceWake = once.option(form.Button, '_once_awake', _('awake'));
 		onceWake.inputtitle = _('awake');
 		onceWake.inputstyle = 'apply';
+		onceWake.renderWidget = function(sectionId) {
+			return E('div', { style: 'margin: .75rem 0 1.25rem 0;' }, [
+				E('button', {
+					'class': 'cbi-button cbi-button-apply',
+					type: 'button',
+					click: function(ev) {
+						ev.preventDefault();
+						ev.stopPropagation();
+						return sendWake(optionValue(onceMac, sectionId), optionValue(onceIface, sectionId), ev.currentTarget);
+					}
+				}, _('awake'))
+			]);
+		};
 		onceWake.onclick = function() {
 			var args = resolveClickArgs(arguments);
 			return sendWake(optionValue(onceMac, '_once'), optionValue(onceIface, '_once'), args[1]);
