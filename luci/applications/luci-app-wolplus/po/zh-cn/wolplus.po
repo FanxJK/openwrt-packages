@@ -21,3 +21,15 @@ msgstr "唤醒"
 
 msgid "Please [Save & Apply] your changes first"
 msgstr "请先保存并应用您的设置"
+
+msgid "Please configure MAC address and network interface first"
+msgstr "请先配置 MAC 地址和网络接口"
+
+msgid "Invalid MAC address or network interface"
+msgstr "MAC 地址或网络接口无效"
+
+msgid "Wake request failed"
+msgstr "唤醒请求失败"
+
+msgid "Wake request sent"
+msgstr "唤醒请求已发送"

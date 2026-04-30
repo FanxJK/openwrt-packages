@@ -1,11 +1,20 @@
 {
 	"luci-app-wolplus": {
-		"description": "Grant UCI access for luci-app-wolplus",
+		"description": "Grant UCI and command access for luci-app-wolplus",
 		"read": {
+			"ubus": {
+				"luci-rpc": [ "getHostHints" ]
+			},
+			"file": {
+				"/usr/bin/etherwake": [ "exec" ]
+			},
 			"uci": [ "wolplus" ]
 		},
 		"write": {
 			"uci": [ "wolplus" ]
+		},
+		"exec": {
+			"/usr/bin/etherwake": [ "*" ]
 		}
 	}
 }

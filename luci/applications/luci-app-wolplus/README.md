@@ -1,9 +1,10 @@
-
 # luci-app-wolplus（网络唤醒++）
 
-一款更方便的唤醒网络设备的插件
+luci-app-wolplus 是一个用于 OpenWrt/ImmortalWrt 的网络唤醒 LuCI 插件，可更方便地管理局域网设备并发送 Wake-on-LAN 唤醒请求。
 
-### 效果展示
-![wolplus][1]
+## Credits
 
-  [1]: https://raw.githubusercontent.com/sundaqiang/openwrt-packages/master/img/wolplus.png
+- Original author: sundaqiang
+- Original repository: https://github.com/sundaqiang/openwrt-packages
+- JavaScript rewrite: Fanx
+- JavaScript rewrite repository: https://github.com/FanxJK/openwrt-packages/tree/main/luci/applications/luci-app-wolplus

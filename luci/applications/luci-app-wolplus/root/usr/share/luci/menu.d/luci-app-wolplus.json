@@ -1,0 +1,14 @@
+{
+  "admin/services/wolplus": {
+    "title": "wolplus",
+    "order": 95,
+    "action": {
+      "type": "view",
+      "path": "wolplus"
+    },
+    "depends": {
+      "acl": [ "luci-app-wolplus" ],
+      "uci": { "wolplus": true }
+    }
+  }
+}
