@@ -33,3 +33,15 @@ msgstr "唤醒请求失败"
 
 msgid "Wake request sent"
 msgstr "唤醒请求已发送"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Collecting data..."
+msgstr "正在处理..."
+
+msgid "One-time wake"
+msgstr "一次性唤醒"
+
+msgid "Send a Wake-on-LAN packet without saving the device."
+msgstr "无需保存设备，直接发送 Wake-on-LAN 唤醒包。"
