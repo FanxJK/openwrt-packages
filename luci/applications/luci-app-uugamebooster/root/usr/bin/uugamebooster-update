@@ -2,9 +2,14 @@
 
 set -eu
 
+SELF='/usr/bin/uugamebooster-update'
 API_BASE='https://router.uu.163.com/api/plugin?type=openwrt-'
 DOWNLOAD_BASE='http://uurouter.gdl.netease.com/uuplugin/openwrt-'
-TMP_DIR='/tmp/uugamebooster-update'
+STATE_DIR='/tmp/uugamebooster-update'
+WORK_DIR="$STATE_DIR/work"
+LOG_FILE="$STATE_DIR/update.log"
+PID_FILE="$STATE_DIR/update.pid"
+CODE_FILE="$STATE_DIR/update.code"
 ARCH=''
 INFO=''
 URL=''
@@ -31,11 +36,10 @@ finish() {
 		/etc/init.d/uugamebooster start >/dev/null 2>&1 || true
 	fi
 
-	rm -rf "$TMP_DIR"
+	rm -rf "$WORK_DIR"
 	exit "$status"
 }
 
-trap finish EXIT
 json_value() {
 	jsonfilter -s "$1" -e "@$2" 2>/dev/null || true
 }
@@ -88,6 +92,7 @@ current_arch() {
 valid_version() {
 	printf '%s' "$1" | grep -Eq '^v[0-9A-Za-z._-]+$'
 }
+
 plugin_info() {
 	curl -fsSL "${API_BASE}$1"
 }
@@ -118,6 +123,15 @@ is_running() {
 	ubus call service list '{"name":"uugamebooster"}' 2>/dev/null | jsonfilter -e '@.uugamebooster.instances.*.running' 2>/dev/null | grep -q '^true$'
 }
 
+job_running() {
+	local pid=''
+
+	[ -s "$PID_FILE" ] || return 1
+	pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+	[ -n "$pid" ] || return 1
+	kill -0 "$pid" 2>/dev/null
+}
+
 install_file() {
 	local src="$1"
 	local dest="$2"
@@ -131,7 +145,55 @@ install_file() {
 	chmod 0755 "$dest"
 }
 
-update() {
+start_update() {
+	mkdir -p "$STATE_DIR"
+
+	if job_running; then
+		echo 'Update already running.'
+		exit 0
+	fi
+
+	rm -f "$CODE_FILE" "$LOG_FILE" "$PID_FILE"
+	echo 'Starting update...' > "$LOG_FILE"
+
+	(
+		set +e
+		"$SELF" run
+		code=$?
+		echo "$code" > "$CODE_FILE"
+		rm -f "$PID_FILE"
+		exit "$code"
+	) >> "$LOG_FILE" 2>&1 < /dev/null &
+
+	echo "$!" > "$PID_FILE"
+	echo 'Update started.'
+}
+
+status() {
+	local code=''
+
+	if job_running; then
+		echo 'running'
+		exit 0
+	fi
+
+	rm -f "$PID_FILE"
+
+	if [ -f "$CODE_FILE" ]; then
+		code="$(cat "$CODE_FILE" 2>/dev/null || true)"
+		[ "$code" = '0' ] && echo 'completed' || echo 'failed'
+	else
+		echo 'idle'
+	fi
+}
+
+log_output() {
+	[ -f "$LOG_FILE" ] && cat "$LOG_FILE" || echo 'No output.'
+}
+
+run_update() {
+	trap finish EXIT
+
 	ARCH="$(current_arch)"
 	echo "Architecture: $ARCH"
 
@@ -164,12 +226,12 @@ update() {
 		exit 0
 	fi
 
-	rm -rf "$TMP_DIR"
-	mkdir -p "$TMP_DIR"
-	TARBALL="$TMP_DIR/uu.tar.gz"
-	EXTRACT_DIR="$TMP_DIR/extract"
+	rm -rf "$WORK_DIR"
+	mkdir -p "$WORK_DIR"
+	TARBALL="$WORK_DIR/uu.tar.gz"
+	EXTRACT_DIR="$WORK_DIR/extract"
 	mkdir -p "$EXTRACT_DIR"
-	BACKUP_DIR="$TMP_DIR/backup"
+	BACKUP_DIR="$WORK_DIR/backup"
 	mkdir -p "$BACKUP_DIR"
 
 	echo 'Downloading package...'
@@ -214,11 +276,20 @@ case "${1:-}" in
 	latest)
 		latest
 		;;
-	update)
-		update
+	start)
+		start_update
+		;;
+	status)
+		status
+		;;
+	log)
+		log_output
+		;;
+	run)
+		run_update
 		;;
 	*)
-		echo "Usage: $0 {latest|update}" >&2
+		echo "Usage: $0 {latest|start|status|log}" >&2
 		exit 1
 		;;
 esac

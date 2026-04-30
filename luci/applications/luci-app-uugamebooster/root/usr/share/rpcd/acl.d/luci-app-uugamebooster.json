@@ -16,7 +16,7 @@
 		},
 		"exec": {
 			"/usr/bin/uugamebooster": [ "-v" ],
-			"/usr/bin/uugamebooster-update": [ "latest", "update" ]
+			"/usr/bin/uugamebooster-update": [ "latest", "log", "start", "status" ]
 		}
 	}
 }

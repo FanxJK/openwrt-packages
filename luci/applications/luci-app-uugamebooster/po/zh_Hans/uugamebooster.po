@@ -46,5 +46,8 @@ msgstr "更新失败"
 msgid "No output."
 msgstr "无输出。"
 
+msgid "Starting update..."
+msgstr "正在开始更新..."
+
 msgid "Close"
 msgstr "关闭"

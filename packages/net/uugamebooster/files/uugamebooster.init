@@ -61,8 +61,8 @@ start_service() {
 		cat <<EOF >> /etc/openclash/custom/openclash_custom_localnetwork_ipv4.list
 # UU Game Booster Start
 163.163.0.0/24
-163.163.192.0/24
-163.163.163.0/24
+163.163.127.0/24
+163.163.192.0/23
 164.164.164.0/24
 # UU Game Booster End
 EOF

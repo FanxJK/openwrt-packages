@@ -76,24 +76,8 @@ function updateStatus(node, running) {
 	node.appendChild(renderStatus(running));
 }
 
-function updateOutput(res) {
-	var output = [ res && res.stdout, res && res.stderr ].filter(function(value) {
-		return value != null && String(value).trim().length > 0;
-	}).join('\n').trim();
-
-	return output || _('No output.');
-}
-
-function showUpdateResult(title, output) {
-	ui.showModal(title, [
-		E('pre', { style: 'white-space: pre-wrap; max-height: 24em; overflow: auto;' }, output),
-		E('div', { 'class': 'right' }, [
-			E('button', {
-				'class': 'btn cbi-button cbi-button-neutral',
-				click: ui.hideModal
-			}, _('Close'))
-		])
-	]);
+function updateAvailable(currentVersion, latestVersion) {
+	return currentVersion !== _('Unknown') && latestVersion !== _('Unknown') && currentVersion !== latestVersion;
 }
 
 return view.extend({
@@ -149,35 +133,77 @@ return view.extend({
 			return latestVersion;
 		};
 
-		var update = s.option(form.Button, '_online_update', _('Online Update'));
-		update.inputtitle = _('Update Now');
-		update.inputstyle = 'apply';
-		update.onclick = function(sectionId, ev) {
-			var button = ev && ev.currentTarget;
+		if (updateAvailable(currentVersion, latestVersion)) {
+			var update = s.option(form.Button, '_online_update', _('Online Update'));
+			update.inputtitle = _('Update Now');
+			update.inputstyle = 'apply';
+			update.render = function(sectionId) {
+				return Promise.resolve(form.Button.prototype.render.apply(this, [ sectionId ])).then(function(node) {
+					node.style.margin = '12px 0 10px 0';
+					return node;
+				});
+			};
+			update.onclick = function(sectionId, ev) {
+				var button = ev && ev.currentTarget;
+				var logNode = E('pre', { style: 'white-space: pre-wrap; max-height: 24em; overflow: auto;' }, _('Starting update...'));
+				var timer = null;
 
-			if (button) {
-				button.disabled = true;
-				button.textContent = _('Updating...');
-			}
+				function setButton(disabled) {
+					if (!button)
+						return;
 
-			return fs.exec(HELPER, [ 'update' ]).then(function(res) {
-				var output = updateOutput(res);
-
-				if (res && res.code != null && +res.code !== 0)
-					showUpdateResult(_('Update Failed'), output);
-				else
-					showUpdateResult(_('Update Completed'), output);
-			}).catch(function(err) {
-				showUpdateResult(_('Update Failed'), err.message || String(err));
-			}).then(function() {
-				if (button) {
-					button.disabled = false;
-					button.textContent = _('Update Now');
+					button.disabled = disabled;
+					button.textContent = disabled ? _('Updating...') : _('Update Now');
 				}
-			});
-		};
-		update.write = function() {};
-		update.remove = function() {};
+
+				function refreshLog() {
+					return Promise.all([
+						L.resolveDefault(fs.exec(HELPER, [ 'log' ]), null),
+						L.resolveDefault(fs.exec(HELPER, [ 'status' ]), null)
+					]).then(function(data) {
+						var output = latestVersionText(data[0]);
+						var status = latestVersionText(data[1]);
+
+						logNode.textContent = output;
+						logNode.scrollTop = logNode.scrollHeight;
+
+						if (status === 'running') {
+							timer = window.setTimeout(refreshLog, 1000);
+							return;
+						}
+
+						setButton(false);
+
+						if (status === 'completed')
+							window.setTimeout(function() { window.location.reload(); }, 1200);
+					});
+				}
+
+				setButton(true);
+				ui.showModal(_('Online Update'), [
+					logNode,
+					E('div', { 'class': 'right' }, [
+						E('button', {
+							'class': 'btn cbi-button cbi-button-neutral',
+							click: function() {
+								if (timer)
+									window.clearTimeout(timer);
+								ui.hideModal();
+							}
+						}, _('Close'))
+					])
+				]);
+
+				return fs.exec(HELPER, [ 'start' ]).then(function() {
+					return refreshLog();
+				}).catch(function(err) {
+					setButton(false);
+					logNode.textContent = err.message || String(err);
+				});
+			};
+			update.write = function() {};
+			update.remove = function() {};
+		}
 
 		var qrSection = m.section(form.TypedSection, 'uugamebooster');
 		qrSection.anonymous = true;
