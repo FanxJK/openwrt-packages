@@ -1,6 +1,6 @@
 {
   "admin/services/uugamebooster": {
-    "title": "UU GameAcc",
+    "title": "UU Game Booster",
     "order": 99,
     "action": {
       "type": "view",

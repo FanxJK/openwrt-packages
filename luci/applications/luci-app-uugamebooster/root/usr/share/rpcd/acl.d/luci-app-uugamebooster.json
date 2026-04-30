@@ -1,14 +1,22 @@
 {
 	"luci-app-uugamebooster": {
-		"description": "Grant UCI and service status access for luci-app-uugamebooster",
+		"description": "Grant UCI, service status, and update access for luci-app-uugamebooster",
 		"read": {
 			"ubus": {
 				"service": [ "list" ]
+			},
+			"file": {
+				"/usr/bin/uugamebooster": [ "exec" ],
+				"/usr/bin/uugamebooster-update": [ "exec" ]
 			},
 			"uci": [ "uugamebooster" ]
 		},
 		"write": {
 			"uci": [ "uugamebooster" ]
+		},
+		"exec": {
+			"/usr/bin/uugamebooster": [ "-v" ],
+			"/usr/bin/uugamebooster-update": [ "latest", "update" ]
 		}
 	}
 }

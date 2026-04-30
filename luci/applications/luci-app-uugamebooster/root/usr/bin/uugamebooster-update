@@ -1,0 +1,224 @@
+#!/bin/sh
+
+set -eu
+
+API_BASE='https://router.uu.163.com/api/plugin?type=openwrt-'
+DOWNLOAD_BASE='http://uurouter.gdl.netease.com/uuplugin/openwrt-'
+TMP_DIR='/tmp/uugamebooster-update'
+ARCH=''
+INFO=''
+URL=''
+DOWNLOAD_URL=''
+MD5=''
+VERSION=''
+CURRENT=''
+TARBALL=''
+EXTRACT_DIR=''
+BACKUP_DIR=''
+WAS_RUNNING='0'
+RESTORE_NEEDED='0'
+
+finish() {
+	status=$?
+
+	if [ "$status" -ne 0 ] && [ "$RESTORE_NEEDED" = '1' ]; then
+		[ -f "$BACKUP_DIR/uugamebooster" ] && cp "$BACKUP_DIR/uugamebooster" /usr/bin/uugamebooster && chmod 0755 /usr/bin/uugamebooster
+		[ -f "$BACKUP_DIR/xtables-nft-multi" ] && cp "$BACKUP_DIR/xtables-nft-multi" /usr/bin/xtables-nft-multi && chmod 0755 /usr/bin/xtables-nft-multi
+		[ -f "$BACKUP_DIR/uu.conf" ] && cp "$BACKUP_DIR/uu.conf" /usr/share/uugamebooster/uu.conf && chmod 0644 /usr/share/uugamebooster/uu.conf
+	fi
+
+	if [ "$status" -ne 0 ] && [ "$WAS_RUNNING" = '1' ]; then
+		/etc/init.d/uugamebooster start >/dev/null 2>&1 || true
+	fi
+
+	rm -rf "$TMP_DIR"
+	exit "$status"
+}
+
+trap finish EXIT
+json_value() {
+	jsonfilter -s "$1" -e "@$2" 2>/dev/null || true
+}
+
+current_arch() {
+	local arch=''
+
+	. /etc/openwrt_release
+	arch="${DISTRIB_ARCH:-}"
+
+	case "$arch" in
+		x86_64|aarch64|arm|mipsel)
+			printf '%s' "$arch"
+			return
+			;;
+		aarch64*)
+			printf '%s' 'aarch64'
+			return
+			;;
+		arm*)
+			printf '%s' 'arm'
+			return
+			;;
+		mipsel*)
+			printf '%s' 'mipsel'
+			return
+			;;
+	esac
+
+	case "$(uname -m)" in
+		x86_64)
+			printf '%s' 'x86_64'
+			;;
+		aarch64)
+			printf '%s' 'aarch64'
+			;;
+		arm*)
+			printf '%s' 'arm'
+			;;
+		mips*)
+			printf '%s' 'mipsel'
+			;;
+		*)
+			echo 'Unsupported architecture.' >&2
+			exit 1
+			;;
+	esac
+}
+
+valid_version() {
+	printf '%s' "$1" | grep -Eq '^v[0-9A-Za-z._-]+$'
+}
+plugin_info() {
+	curl -fsSL "${API_BASE}$1"
+}
+
+version_from_url() {
+	printf '%s' "$1" | sed -n 's,.*/v\([^/]*\)/uu\.tar\.gz.*$,v\1,p'
+}
+
+current_version() {
+	/usr/bin/uugamebooster -v 2>/dev/null | sed -n 's/^version:[[:space:]]*//p' | head -n 1
+}
+
+latest() {
+	ARCH="$(current_arch)"
+	INFO="$(plugin_info "$ARCH")"
+	URL="$(json_value "$INFO" '.url')"
+	VERSION="$(version_from_url "$URL")"
+
+	[ -n "$VERSION" ] && valid_version "$VERSION" || {
+		echo 'Unknown'
+		exit 1
+	}
+
+	echo "$VERSION"
+}
+
+is_running() {
+	ubus call service list '{"name":"uugamebooster"}' 2>/dev/null | jsonfilter -e '@.uugamebooster.instances.*.running' 2>/dev/null | grep -q '^true$'
+}
+
+install_file() {
+	local src="$1"
+	local dest="$2"
+
+	[ -f "$src" ] || {
+		echo "Missing file: $src"
+		exit 1
+	}
+
+	cp "$src" "$dest"
+	chmod 0755 "$dest"
+}
+
+update() {
+	ARCH="$(current_arch)"
+	echo "Architecture: $ARCH"
+
+	INFO="$(plugin_info "$ARCH")"
+	URL="$(json_value "$INFO" '.url')"
+	MD5="$(json_value "$INFO" '.md5')"
+	VERSION="$(version_from_url "$URL")"
+
+	DOWNLOAD_URL="${DOWNLOAD_BASE}${ARCH}/${VERSION}/uu.tar.gz"
+
+	[ -n "$URL" ] || {
+		echo 'Failed to parse download URL.'
+		exit 1
+	}
+	[ -n "$MD5" ] || {
+		echo 'Failed to parse package MD5.'
+		exit 1
+	}
+	[ -n "$VERSION" ] && valid_version "$VERSION" || {
+		echo 'Failed to parse latest version.'
+		exit 1
+	}
+
+	CURRENT="$(current_version || true)"
+	echo "Latest version: $VERSION"
+	echo "Current version: ${CURRENT:-Unknown}"
+
+	if [ "$CURRENT" = "$VERSION" ]; then
+		echo 'Already up to date.'
+		exit 0
+	fi
+
+	rm -rf "$TMP_DIR"
+	mkdir -p "$TMP_DIR"
+	TARBALL="$TMP_DIR/uu.tar.gz"
+	EXTRACT_DIR="$TMP_DIR/extract"
+	mkdir -p "$EXTRACT_DIR"
+	BACKUP_DIR="$TMP_DIR/backup"
+	mkdir -p "$BACKUP_DIR"
+
+	echo 'Downloading package...'
+	curl -fL -o "$TARBALL" "$DOWNLOAD_URL"
+
+	echo 'Verifying package...'
+	printf '%s  %s\n' "$MD5" "$TARBALL" | md5sum -c - >/dev/null
+
+	echo 'Extracting package...'
+	tar -xzf "$TARBALL" -C "$EXTRACT_DIR"
+
+	if is_running; then
+		WAS_RUNNING='1'
+		echo 'Stopping uugamebooster...'
+		/etc/init.d/uugamebooster stop
+	fi
+
+	echo 'Installing files...'
+	[ -f /usr/bin/uugamebooster ] && cp /usr/bin/uugamebooster "$BACKUP_DIR/uugamebooster"
+	[ -f /usr/bin/xtables-nft-multi ] && cp /usr/bin/xtables-nft-multi "$BACKUP_DIR/xtables-nft-multi"
+	[ -f /usr/share/uugamebooster/uu.conf ] && cp /usr/share/uugamebooster/uu.conf "$BACKUP_DIR/uu.conf"
+	RESTORE_NEEDED='1'
+	install_file "$EXTRACT_DIR/uuplugin" /usr/bin/uugamebooster
+	install_file "$EXTRACT_DIR/xtables-nft-multi" /usr/bin/xtables-nft-multi
+	[ -f "$EXTRACT_DIR/uu.conf" ] || {
+		echo "Missing file: $EXTRACT_DIR/uu.conf"
+		exit 1
+	}
+	cp "$EXTRACT_DIR/uu.conf" /usr/share/uugamebooster/uu.conf
+	chmod 0644 /usr/share/uugamebooster/uu.conf
+	RESTORE_NEEDED='0'
+
+	if [ "$WAS_RUNNING" = '1' ]; then
+		echo 'Starting uugamebooster...'
+		/etc/init.d/uugamebooster start
+	fi
+
+	echo "Update completed: $VERSION"
+}
+
+case "${1:-}" in
+	latest)
+		latest
+		;;
+	update)
+		update
+		;;
+	*)
+		echo "Usage: $0 {latest|update}" >&2
+		exit 1
+		;;
+esac

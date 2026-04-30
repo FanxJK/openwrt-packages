@@ -14,10 +14,6 @@ start_service() {
 	local enabled
 	config_get_bool enabled "config" "enabled" "0"
 	[ "$enabled" -eq "1" ] || return 1
-	if [ ! -f /usr/bin/xtables-nft-multi ]; then
-		cp /usr/sbin/xtables-nft-multi /usr/bin/xtables-nft-multi
-	fi
-
 	input_rule_exists=$(uci show firewall | grep -q "Allow-uugamebooster-Input" && echo 1 || echo 0)
 	if [ "$input_rule_exists" -eq "0" ]; then
 		uci add firewall rule
