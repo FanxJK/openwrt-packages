@@ -1,5 +1,6 @@
 'use strict';
 'require view';
+'require form';
 'require uci';
 'require fs';
 'require ui';
@@ -8,6 +9,8 @@ var TMP_DIR = '/tmp/easyupdate';
 var MARKER_FILE = TMP_DIR + '/firmware_filename';
 var LOG_FILE = TMP_DIR + '/curl.log';
 var PID_FILE = TMP_DIR + '/download.pid';
+var RELEASE_CACHE_FILE = TMP_DIR + '/release.json';
+var RELEASE_CACHE_TTL = 600;
 var FIRMWARE_REPO_OWNER = 'FanxJK';
 var FIRMWARE_REPO_NAME = 'OpenWrt-x86_64-Actions';
 var FIRMWARE_REPO_URL = 'https://github.com/' + FIRMWARE_REPO_OWNER + '/' + FIRMWARE_REPO_NAME;
@@ -95,6 +98,24 @@ function findAsset(release, isEfi) {
 	};
 }
 
+function parseRelease(body) {
+	var release;
+
+	try {
+		release = JSON.parse(body || '{}');
+	} catch (e) {
+		throw new Error(body || _('Failed to parse release information'));
+	}
+
+	if (release.message && !release.tag_name)
+		throw new Error(JSON.stringify(release, null, 2));
+
+	if (!release.tag_name)
+		throw new Error(_('Failed to parse release information'));
+
+	return release;
+}
+
 return view.extend({
 	load: function() {
 		return Promise.all([
@@ -118,14 +139,10 @@ return view.extend({
 		this.logLines = [];
 		this.progressTimer = null;
 
-		var node = this.renderPanel();
-		var self = this;
-
-		window.setTimeout(function() {
-			self.refreshRelease();
-		}, 0);
-
-		return node;
+		return this.renderPanel().then(L.bind(function(node) {
+			window.setTimeout(L.bind(this.refreshRelease, this), 0);
+			return node;
+		}, this));
 	},
 
 	renderPanel: function() {
@@ -166,12 +183,17 @@ return view.extend({
 			style: 'display: none;'
 		});
 
-		return E('div', { 'class': 'cbi-map easyupdate-map' }, [
-			E('style', {}, [
+		var m = new form.Map('easyupdate', _('Firmware Update'),
+			_('Check the latest firmware, adjust upgrade options, download with progress, verify integrity, and upgrade from this page.') + '<br /><br />' +
+			'<a href="' + FIRMWARE_REPO_URL + '" target="_blank" rel="noreferrer noopener">Powered by Fanx</a>');
+
+		return m.render().then(L.bind(function(mapNode) {
+			mapNode.classList.add('easyupdate-map');
+			mapNode.appendChild(E('style', {}, [
 					'.easyupdate-map{max-width:none;margin:0}',
-					'.easyupdate-map .cbi-map-descr{line-height:1.6;margin-bottom:18px}',
-					'.easyupdate-map .cbi-section{padding:22px 24px;margin-top:18px}',
-					'.easyupdate-map .cbi-section h3{margin-top:0;margin-bottom:18px}',
+					'.easyupdate-map .cbi-map-descr{margin-bottom:0}',
+					'.easyupdate-map .cbi-section{margin-top:4px;padding:18px 22px}',
+					'.easyupdate-map .cbi-section + .cbi-section{margin-top:6px}',
 					'.easyupdate-setting-row,.easyupdate-version-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;align-items:stretch}',
 					'.easyupdate-setting-box,.easyupdate-version-item{min-width:0;padding:16px 18px;border:1px solid rgba(127,127,127,.14);border-radius:4px;background:rgba(127,127,127,.035)}',
 					'.easyupdate-setting-label{display:block;margin-bottom:12px;font-weight:600}',
@@ -188,15 +210,9 @@ return view.extend({
 					'.easyupdate-progress-bar{height:100%;width:0%;background:#0069d9;transition:width .25s ease}',
 					'.easyupdate-progress-text{margin-top:10px;text-align:center;font-weight:600}',
 					'.easyupdate-log{box-sizing:border-box;width:100%!important;height:240px;margin-top:0;padding:12px 14px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}',
-					'@media (max-width:900px){.easyupdate-setting-row,.easyupdate-version-grid{grid-template-columns:1fr}.easyupdate-map .cbi-section{padding:18px}}'
-			].join('\n')),
-			E('h2', {}, _('Firmware Update')),
-			E('div', { 'class': 'cbi-map-descr' }, [
-				_('Check the latest firmware, adjust upgrade options, download with progress, verify integrity, and upgrade from this page.'),
-				E('br'),
-				E('a', { href: FIRMWARE_REPO_URL, target: '_blank', rel: 'noreferrer noopener' }, 'Powered by Fanx')
-			]),
-			E('div', { 'class': 'cbi-section' }, [
+					'@media (max-width:900px){.easyupdate-setting-row,.easyupdate-version-grid{grid-template-columns:1fr}}'
+			].join('\n')));
+			mapNode.appendChild(E('div', { 'class': 'cbi-section' }, [
 				E('h3', {}, _('Upgrade Settings')),
 				E('div', { 'class': 'easyupdate-setting-row' }, [
 					E('div', { 'class': 'easyupdate-setting-box' }, [
@@ -213,8 +229,8 @@ return view.extend({
 						E('small', { 'class': 'easyupdate-setting-help' }, _('When selected, Preference Force Flashing while firmware upgrading.'))
 					])
 				])
-			]),
-			E('div', { 'class': 'cbi-section' }, [
+			]));
+			mapNode.appendChild(E('div', { 'class': 'cbi-section' }, [
 				E('h3', {}, _('Firmware Status')),
 				E('div', { 'class': 'easyupdate-version-grid' }, [
 					E('div', { 'class': 'easyupdate-version-item' }, [
@@ -226,21 +242,23 @@ return view.extend({
 						this.nodes.cloud
 					])
 				])
-			]),
-			E('div', { 'class': 'cbi-section' }, [
+			]));
+			mapNode.appendChild(E('div', { 'class': 'cbi-section' }, [
 				E('h3', {}, _('Release Notes')),
 				this.nodes.release
-			]),
-			E('div', { 'class': 'cbi-section easyupdate-actions' }, [
+			]));
+			mapNode.appendChild(E('div', { 'class': 'cbi-section easyupdate-actions' }, [
 				this.nodes.button,
 				this.nodes.progress,
 				this.nodes.progressText
-			]),
-			E('div', { 'class': 'cbi-section' }, [
+			]));
+			mapNode.appendChild(E('div', { 'class': 'cbi-section' }, [
 				E('h3', {}, _('Update Log')),
 				this.nodes.log
-			])
-		]);
+			]));
+
+		return mapNode;
+	}, this));
 	},
 
 	saveSettings: function() {
@@ -322,8 +340,54 @@ return view.extend({
 		});
 	},
 
+	readCachedRelease: function() {
+		return L.resolveDefault(fs.stat(RELEASE_CACHE_FILE), null).then(function(stat) {
+			if (!stat || stat.mtime == null || Date.now() / 1000 - Number(stat.mtime) >= RELEASE_CACHE_TTL)
+				return null;
+
+			return L.resolveDefault(fs.read(RELEASE_CACHE_FILE), '').then(function(body) {
+				if (!body)
+					return null;
+
+				try {
+					return parseRelease(body);
+				} catch (e) {
+					return null;
+				}
+			});
+		});
+	},
+
+	fetchRelease: function() {
+		var url = 'https://api.github.com/repos/' + FIRMWARE_REPO_OWNER + '/' + FIRMWARE_REPO_NAME + '/releases/latest';
+
+		return this.curlText(url).then(function(body) {
+			return { release: parseRelease(body), cacheBody: body };
+		});
+	},
+
+	loadRelease: function() {
+		var self = this;
+
+		return this.readCachedRelease().then(function(release) {
+			return release ? { release: release, cacheBody: null } : self.fetchRelease();
+		});
+	},
+
+	writeReleaseCache: function(body) {
+		if (!body)
+			return Promise.resolve();
+
+		return L.resolveDefault(fs.write(RELEASE_CACHE_FILE, body), null);
+	},
+
 	assetUrl: function(url) {
-		return String(this.nodes.mirror ? this.nodes.mirror.value.trim() : (uci.get('easyupdate', 'main', 'mirror') || '')) + url;
+		var mirror = String(this.nodes.mirror ? this.nodes.mirror.value.trim() : (uci.get('easyupdate', 'main', 'mirror') || ''));
+
+		if (!mirror)
+			return url;
+
+		return mirror.replace(/\/?$/, '/') + url;
 	},
 
 	refreshRelease: function() {
@@ -334,21 +398,10 @@ return view.extend({
 		this.appendLog(_('Checking cloud firmware version...'));
 
 		return this.ensureTmpDir().then(function() {
-			return self.curlText('https://api.github.com/repos/' + FIRMWARE_REPO_OWNER + '/' + FIRMWARE_REPO_NAME + '/releases/latest');
-		}).then(function(body) {
-			var release;
-			var asset;
-
-			try {
-				release = JSON.parse(body || '{}');
-			} catch (e) {
-				throw new Error(body || _('Failed to parse release information'));
-			}
-
-			if (release.message && !release.tag_name)
-				throw new Error(JSON.stringify(release, null, 2));
-
-			asset = findAsset(release, self.state.isEfi);
+			return self.loadRelease();
+		}).then(function(result) {
+			var release = result.release;
+			var asset = findAsset(release, self.state.isEfi);
 			self.state.release = release;
 			self.state.asset = asset;
 			self.nodes.cloud.textContent = release.tag_name || _('Unknown');
@@ -357,7 +410,9 @@ return view.extend({
 			if (!asset)
 				throw new Error(_('Cloud firmware link parse failed'));
 
-			return self.restoreOrPrepare();
+			return self.writeReleaseCache(result.cacheBody).then(function() {
+				return self.restoreOrPrepare();
+			});
 		}).catch(function(err) {
 			self.nodes.cloud.textContent = _('API Check Failed');
 			self.nodes.release.textContent = err.message || String(err);
