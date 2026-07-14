@@ -137,3 +137,27 @@ msgstr "dnsmasq 已配置为忽略 /tmp/hosts。启用同步前，请将 ignore_
 
 msgid "dnsmasq is configured to filter AAAA records. Disable AAAA filtering before enabling synchronization."
 msgstr "dnsmasq 已配置为过滤 AAAA 记录。启用同步前，请关闭 AAAA 过滤。"
+
+msgid "Host name"
+msgstr "主机名"
+
+msgid "IPv4 address"
+msgstr "IPv4 地址"
+
+msgid "IPv6 address"
+msgstr "IPv6 地址"
+
+msgid "Current IPv6 prefixes"
+msgstr "当前 IPv6 前缀"
+
+msgid "Delegated"
+msgstr "委派"
+
+msgid "Assigned"
+msgstr "已分配"
+
+msgid "Configured ULA"
+msgstr "已配置 ULA"
+
+msgid "No IPv6 prefix is currently reported by netifd."
+msgstr "netifd 当前未报告 IPv6 前缀。"

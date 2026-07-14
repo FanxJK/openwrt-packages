@@ -9,7 +9,8 @@ OpenWrt 25.12 LuCI application for publishing local AAAA records from pure-SLAAC
 The LuCI page is available under **Services → SLAAC DNS Sync** and provides:
 
 - a master enable/disable switch;
-- live procd service status and generated record count;
+- live procd service status, generated record count, and current netifd IPv6 prefixes;
+- expandable host details showing one FQDN plus correlated IPv4 and published IPv6 addresses;
 - one-click manual synchronization;
 - ULA/GUA selection policy;
 - local domain and interval settings;
