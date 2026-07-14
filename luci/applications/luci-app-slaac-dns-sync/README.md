@@ -39,7 +39,7 @@ The package is architecture-independent (`all`).
 The locally built APK is unsigned unless your SDK/build pipeline signs it. Install an unsigned build with:
 
 ```sh
-apk add --allow-untrusted ./luci-app-slaac-dns-sync-1.0.0-r1.apk
+apk add --allow-untrusted ./luci-app-slaac-dns-sync-*.apk
 ```
 
 Then clear the browser cache or sign out/in if the menu is not immediately visible.

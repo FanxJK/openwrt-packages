@@ -118,9 +118,10 @@ return view.extend({
 		s = m.section(form.NamedSection, 'main', 'main');
 		s.anonymous = true;
 		s.addremove = false;
+		/* form.js stores tab names as Array properties; avoid names such as "filter". */
 		s.tab('service', _('Service'));
 		s.tab('policy', _('Address policy'));
-		s.tab('filter', _('Host filtering'));
+		s.tab('hosts', _('Host filtering'));
 
 		o = s.taboption('service', form.DummyValue, '_status', _('Current status'));
 		o.renderWidget = function() {
@@ -191,12 +192,12 @@ return view.extend({
 		o.default = '1';
 		o.rmempty = false;
 
-		o = s.taboption('filter', form.DynamicList, 'include', _('Included host names'),
+		o = s.taboption('hosts', form.DynamicList, 'include', _('Included host names'),
 			_('Optional allowlist. Leave empty to include every named host. For servers, an allowlist such as docker and nas is recommended.'));
 		o.datatype = 'hostname';
 		o.rmempty = true;
 
-		o = s.taboption('filter', form.DynamicList, 'exclude', _('Excluded host names'),
+		o = s.taboption('hosts', form.DynamicList, 'exclude', _('Excluded host names'),
 			_('Optional denylist. Exclusions take precedence over inclusions.'));
 		o.datatype = 'hostname';
 		o.rmempty = true;
