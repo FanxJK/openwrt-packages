@@ -42,7 +42,6 @@ jobs:
           INDEX: 1
           NO_REFRESH_CHECK: 1
           NO_SHFMT_CHECK: 1
-          V: s
 
       - name: Collect artifacts
         id: artifacts
