@@ -147,9 +147,6 @@ msgstr "IPv4 地址"
 msgid "IPv6 address"
 msgstr "IPv6 地址"
 
-msgid "Current IPv6 prefixes"
-msgstr "当前 IPv6 前缀"
-
 msgid "Delegated"
 msgstr "委派"
 

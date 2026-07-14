@@ -299,7 +299,6 @@ function statusView(status) {
 			'hidden': problem ? null : ''
 		}, problem || ''),
 		E('div', { 'class': 'cbi-section' }, [
-			E('h3', {}, _('Current IPv6 prefixes')),
 			prefixTable.render()
 		]),
 		E('details', { 'id': DETAILS_ID, 'class': 'cbi-section' }, [
@@ -349,6 +348,18 @@ function refreshStatus() {
 	return loadStatus().then(updateStatusView);
 }
 
+function notifySuccess(message) {
+	const notification = ui.addTimeLimitedNotification(null,
+		E('p', {}, message), 3000, 'info');
+	const dismiss = notification.querySelector('button');
+
+	/* Some themes define no fade-out transition, so transitionend never removes it. */
+	if (dismiss)
+		dismiss.addEventListener('click', function() {
+			notification.remove();
+		}, { once: true });
+}
+
 return view.extend({
 	load: function() {
 		return loadStatus();
@@ -390,7 +401,7 @@ return view.extend({
 				if (result.code !== 0)
 					throw new Error(result.stderr || _('Synchronization failed'));
 
-				ui.addNotification(null, E('p', {}, _('SLAAC DNS records synchronized.')));
+				notifySuccess(_('SLAAC DNS records synchronized.'));
 				return refreshStatus();
 			}).catch(function(error) {
 				ui.addNotification(_('Synchronization failed'), E('p', {}, String(error)), 'error');
