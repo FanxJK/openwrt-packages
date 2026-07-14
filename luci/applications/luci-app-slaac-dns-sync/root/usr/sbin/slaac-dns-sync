@@ -5,11 +5,17 @@ import * as fs from 'fs';
 import * as uloop from 'uloop';
 import { connect } from 'ubus';
 import { cursor } from 'uci';
+import {
+	openlog, syslog,
+	LOG_PID, LOG_DAEMON, LOG_ERR, LOG_WARNING, LOG_INFO
+} from 'log';
 
 const UCI_PACKAGE = 'slaac_dns_sync';
 const UCI_SECTION = 'main';
 const DEFAULT_HOSTFILE = '/tmp/hosts/slaac-dns-sync';
 const TAG = 'slaac-dns-sync';
+
+openlog(TAG, LOG_PID, LOG_DAEMON);
 
 let fixture_path = getenv('SLAAC_DNS_HINTS_FILE');
 let output_path = getenv('SLAAC_DNS_OUTPUT') || DEFAULT_HOSTFILE;
@@ -17,7 +23,9 @@ let no_reload = getenv('SLAAC_DNS_NO_RELOAD') == '1';
 let config_dir = getenv('SLAAC_DNS_CONFIG_DIR');
 
 function logmsg(level, message) {
-	warn(sprintf('%s[%s]: %s\n', TAG, level, message));
+	let priority = level == 'error' ? LOG_ERR :
+		level == 'warning' ? LOG_WARNING : LOG_INFO;
+	syslog(priority, message);
 }
 
 function uci_context() {

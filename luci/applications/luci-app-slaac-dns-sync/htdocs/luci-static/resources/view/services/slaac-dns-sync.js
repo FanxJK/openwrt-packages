@@ -11,6 +11,15 @@
 const SERVICE = 'slaac-dns-sync';
 const HOSTFILE = '/tmp/hosts/slaac-dns-sync';
 const DETAILS_ID = 'slaac-dns-sync-records';
+const STATE_ID = 'slaac-dns-sync-state';
+const RECORD_COUNT_ID = 'slaac-dns-sync-record-count';
+const HOST_COUNT_ID = 'slaac-dns-sync-host-count';
+const WARNING_ID = 'slaac-dns-sync-warning';
+const HOST_TABLE_ID = 'slaac-dns-sync-host-table';
+const PREFIX_TABLE_ID = 'slaac-dns-sync-prefix-table';
+
+let hostTable = null;
+let prefixTable = null;
 
 const callServiceList = rpc.declare({
 	object: 'service',
@@ -186,24 +195,14 @@ function renderAddressList(addresses) {
 	return E('span', {}, children);
 }
 
-function renderHostTable(hosts) {
-	const rows = [
-		E('div', { 'class': 'tr table-titles' }, [
-			E('div', { 'class': 'th' }, _('Host name')),
-			E('div', { 'class': 'th' }, _('IPv4 address')),
-			E('div', { 'class': 'th' }, _('IPv6 address'))
-		])
-	];
-
-	hosts.forEach(function(host) {
-		rows.push(E('div', { 'class': 'tr' }, [
-			E('div', { 'class': 'td' }, E('code', {}, host.hostname)),
-			E('div', { 'class': 'td' }, renderAddressList(host.ipv4)),
-			E('div', { 'class': 'td' }, renderAddressList(host.ipv6))
-		]));
+function hostTableRows(hosts) {
+	return hosts.map(function(host) {
+		return [
+			[ host.hostname, E('code', {}, host.hostname) ],
+			[ host.ipv4.join(' '), renderAddressList(host.ipv4) ],
+			[ host.ipv6.join(' '), renderAddressList(host.ipv6) ]
+		];
 	});
-
-	return E('div', { 'class': 'table' }, rows);
 }
 
 function displayedPrefixes(status) {
@@ -243,97 +242,125 @@ function prefixSourceLabel(source) {
 	return source;
 }
 
-function renderPrefixes(status) {
-	const prefixes = displayedPrefixes(status);
-	if (!prefixes.length)
-		return E('p', {}, E('em', {}, _('No IPv6 prefix is currently reported by netifd.')));
+function prefixTableRows(status) {
+	return displayedPrefixes(status).map(function(prefix) {
+		return [
+			[ prefix.prefix, E('code', {}, prefix.prefix) ],
+			prefix.sources.map(prefixSourceLabel).join(', '),
+			prefix.interfaces.length ? prefix.interfaces.join(', ') : '-'
+		];
+	});
+}
 
-	return E('ul', { 'style': 'margin-top:.5em' }, prefixes.map(function(prefix) {
-		const details = prefix.sources.map(prefixSourceLabel);
-		if (prefix.interfaces.length)
-			details.push(prefix.interfaces.join(', '));
-		return E('li', {}, [
-			E('code', {}, prefix.prefix),
-			details.length ? ' (%s)'.format(details.join(', ')) : ''
-		]);
-	}));
+function statusState(status) {
+	const enabled = uci.get('slaac_dns_sync', 'main', 'enabled') === '1';
+
+	if (!enabled)
+		return { labelClass: 'label', stateText: _('Disabled') };
+	if (status.running)
+		return { labelClass: 'label success', stateText: _('Running') };
+	return { labelClass: 'label warning', stateText: _('Stopped or starting') };
 }
 
 function statusView(status) {
-	const enabled = uci.get('slaac_dns_sync', 'main', 'enabled') === '1';
-	let labelClass, stateText;
-
-	if (!enabled) {
-		labelClass = 'label';
-		stateText = _('Disabled');
-	}
-	else if (status.running) {
-		labelClass = 'label success';
-		stateText = _('Running');
-	}
-	else {
-		labelClass = 'label warning';
-		stateText = _('Stopped or starting');
-	}
-
-	const children = [
-		E('p', {}, [
-			E('span', { 'class': labelClass }, stateText),
-			' ',
-			_('%d generated AAAA record(s)').format(status.records.length)
-		])
-	];
+	const state = statusState(status);
 	const problem = dnsmasqProblem();
 
-	if (problem)
-		children.push(E('div', { 'class': 'alert-message warning' }, problem));
+	hostTable = new ui.Table([
+		_('Host name'),
+		_('IPv4 address'),
+		_('IPv6 address')
+	], {
+		id: HOST_TABLE_ID,
+		sortable: true
+	});
+	hostTable.update(hostTableRows(status.hosts),
+		_('No records have been generated yet. The router must first learn a named host IPv6 address through NDP.'));
 
-	children.push(E('div', { 'class': 'cbi-section-descr' }, [
-		E('strong', {}, _('Current IPv6 prefixes')),
-		renderPrefixes(status)
-	]));
+	prefixTable = new ui.Table([
+		_('IPv6 prefix'),
+		_('Source'),
+		_('Interface')
+	], {
+		id: PREFIX_TABLE_ID,
+		sortable: true
+	});
+	prefixTable.update(prefixTableRows(status), _('No IPv6 prefix is currently reported by netifd.'));
 
-	children.push(E('details', { 'id': DETAILS_ID }, [
-		E('summary', {}, '%s (%d)'.format(_('Generated dnsmasq host records'), status.hosts.length)),
-		status.hosts.length
-			? renderHostTable(status.hosts)
-			: E('p', {}, E('em', {}, _('No records have been generated yet. The router must first learn a named host IPv6 address through NDP.')))
-	]));
+	return E('div', {}, [
+		E('p', {}, [
+			E('span', { 'id': STATE_ID, 'class': state.labelClass }, state.stateText),
+			' ',
+			E('span', { 'id': RECORD_COUNT_ID }, _('%d generated AAAA record(s)').format(status.records.length))
+		]),
+		E('div', {
+			'id': WARNING_ID,
+			'class': 'alert-message warning',
+			'hidden': problem ? null : ''
+		}, problem || ''),
+		E('div', { 'class': 'cbi-section' }, [
+			E('h3', {}, _('Current IPv6 prefixes')),
+			prefixTable.render()
+		]),
+		E('details', { 'id': DETAILS_ID, 'class': 'cbi-section' }, [
+			E('summary', {}, [
+				E('strong', {}, _('Generated dnsmasq host records')),
+				' (',
+				E('span', { 'id': HOST_COUNT_ID }, String(status.hosts.length)),
+				')'
+			]),
+			hostTable.render()
+		])
+	]);
+}
 
-	return E('div', {}, children);
+function updateStatusView(status) {
+	const root = document.getElementById('slaac-dns-sync-status');
+	if (!root)
+		return;
+
+	const state = statusState(status);
+	const stateNode = document.getElementById(STATE_ID);
+	const recordCountNode = document.getElementById(RECORD_COUNT_ID);
+	const hostCountNode = document.getElementById(HOST_COUNT_ID);
+	const warningNode = document.getElementById(WARNING_ID);
+	const problem = dnsmasqProblem();
+
+	if (stateNode) {
+		stateNode.className = state.labelClass;
+		dom.content(stateNode, state.stateText);
+	}
+	if (recordCountNode)
+		dom.content(recordCountNode, _('%d generated AAAA record(s)').format(status.records.length));
+	if (hostCountNode)
+		dom.content(hostCountNode, String(status.hosts.length));
+	if (warningNode) {
+		warningNode.hidden = !problem;
+		dom.content(warningNode, problem || '');
+	}
+	if (hostTable)
+		hostTable.update(hostTableRows(status.hosts),
+			_('No records have been generated yet. The router must first learn a named host IPv6 address through NDP.'));
+	if (prefixTable)
+		prefixTable.update(prefixTableRows(status), _('No IPv6 prefix is currently reported by netifd.'));
 }
 
 function refreshStatus() {
-	return loadStatus().then(function(status) {
-		const node = document.getElementById('slaac-dns-sync-status');
-		if (!node)
-			return;
-
-		const details = node.querySelector('#' + DETAILS_ID);
-		const wasOpen = details ? details.open : false;
-		dom.content(node, statusView(status));
-
-		const refreshedDetails = node.querySelector('#' + DETAILS_ID);
-		if (refreshedDetails)
-			refreshedDetails.open = wasOpen;
-	});
+	return loadStatus().then(updateStatusView);
 }
 
 return view.extend({
 	load: function() {
-		return Promise.all([
-			uci.load('slaac_dns_sync'),
-			loadStatus(),
-			uci.load('dhcp'),
-			uci.load('network')
-		]);
+		return loadStatus();
 	},
 
-	render: function(data) {
+	render: function(status) {
 		let m, s, o;
 
 		m = new form.Map('slaac_dns_sync', _('SLAAC DNS Sync'),
 			_('Publish local AAAA records by correlating OpenWrt LuCI host hints: DHCPv4/static host names provide the name, while NDP provides the actual SLAAC IPv6 address. DHCPv6 is not enabled or required.'));
+		m.chain('dhcp');
+		m.chain('network');
 
 		s = m.section(form.NamedSection, 'main', 'main');
 		s.anonymous = true;
@@ -345,7 +372,7 @@ return view.extend({
 
 		o = s.taboption('service', form.DummyValue, '_status', _('Current status'));
 		o.renderWidget = function() {
-			return E('div', { 'id': 'slaac-dns-sync-status' }, statusView(data[1]));
+			return E('div', { 'id': 'slaac-dns-sync-status' }, statusView(status));
 		};
 
 		o = s.taboption('service', form.Flag, 'enabled', _('Enable SLAAC DNS synchronization'),

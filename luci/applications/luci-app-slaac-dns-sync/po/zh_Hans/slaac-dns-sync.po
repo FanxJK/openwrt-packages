@@ -161,3 +161,12 @@ msgstr "已配置 ULA"
 
 msgid "No IPv6 prefix is currently reported by netifd."
 msgstr "netifd 当前未报告 IPv6 前缀。"
+
+msgid "IPv6 prefix"
+msgstr "IPv6 前缀"
+
+msgid "Source"
+msgstr "来源"
+
+msgid "Interface"
+msgstr "接口"

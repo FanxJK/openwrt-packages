@@ -11,6 +11,7 @@ The LuCI page is available under **Services → SLAAC DNS Sync** and provides:
 - a master enable/disable switch;
 - live procd service status, generated record count, and current netifd IPv6 prefixes;
 - expandable host details showing one FQDN plus correlated IPv4 and published IPv6 addresses;
+- native LuCI `ui.Table` status rendering with in-place polling updates;
 - one-click manual synchronization;
 - ULA/GUA selection policy;
 - local domain and interval settings;
@@ -22,6 +23,7 @@ The LuCI page is available under **Services → SLAAC DNS Sync** and provides:
 - `luci-base`
 - `rpcd-mod-luci`
 - `ucode`
+- `ucode-mod-log`
 - dnsmasq configured with `ignore_hosts_dir=0` and without AAAA filtering
 
 ## Build in an OpenWrt 25.12 SDK
