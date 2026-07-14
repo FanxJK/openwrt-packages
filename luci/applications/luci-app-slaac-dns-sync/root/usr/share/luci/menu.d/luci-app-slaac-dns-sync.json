@@ -1,0 +1,13 @@
+{
+	"admin/services/slaac-dns-sync": {
+		"title": "SLAAC DNS Sync",
+		"order": 85,
+		"action": {
+			"type": "view",
+			"path": "services/slaac-dns-sync"
+		},
+		"depends": {
+			"acl": [ "luci-app-slaac-dns-sync" ]
+		}
+	}
+}

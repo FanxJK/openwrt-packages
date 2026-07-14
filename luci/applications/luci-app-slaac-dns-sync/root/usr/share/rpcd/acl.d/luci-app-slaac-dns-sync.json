@@ -1,0 +1,24 @@
+{
+	"luci-app-slaac-dns-sync": {
+		"description": "Grant access to SLAAC DNS synchronization settings and status",
+		"read": {
+			"uci": [ "slaac_dns_sync", "dhcp" ],
+			"ubus": {
+				"service": [ "list" ],
+				"file": [ "read" ]
+			},
+			"file": {
+				"/tmp/hosts/slaac-dns-sync": [ "read" ]
+			}
+		},
+		"write": {
+			"uci": [ "slaac_dns_sync" ],
+			"ubus": {
+				"file": [ "exec" ]
+			},
+			"file": {
+				"/usr/sbin/slaac-dns-sync --once": [ "exec" ]
+			}
+		}
+	}
+}

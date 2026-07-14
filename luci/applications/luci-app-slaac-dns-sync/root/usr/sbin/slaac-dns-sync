@@ -1,0 +1,469 @@
+#!/usr/bin/ucode
+'use strict';
+
+import * as fs from 'fs';
+import * as uloop from 'uloop';
+import { connect } from 'ubus';
+import { cursor } from 'uci';
+
+const UCI_PACKAGE = 'slaac_dns_sync';
+const UCI_SECTION = 'main';
+const DEFAULT_HOSTFILE = '/tmp/hosts/slaac-dns-sync';
+const TAG = 'slaac-dns-sync';
+
+let fixture_path = getenv('SLAAC_DNS_HINTS_FILE');
+let output_path = getenv('SLAAC_DNS_OUTPUT') || DEFAULT_HOSTFILE;
+let no_reload = getenv('SLAAC_DNS_NO_RELOAD') == '1';
+let config_dir = getenv('SLAAC_DNS_CONFIG_DIR');
+
+function logmsg(level, message) {
+	warn(sprintf('%s[%s]: %s\n', TAG, level, message));
+}
+
+function uci_context() {
+	return config_dir ? cursor(config_dir, '/tmp/.slaac_dns_sync_uci', '') : cursor();
+}
+
+function value_or(value, fallback) {
+	return value == null ? fallback : value;
+}
+
+function bool_value(value, fallback) {
+	if (value == null)
+		return fallback;
+
+	if (type(value) == 'boolean')
+		return value;
+
+	let normalized = lc(sprintf('%s', value));
+	return normalized == '1' || normalized == 'true' || normalized == 'yes' || normalized == 'on';
+}
+
+function int_value(value, fallback, minimum, maximum) {
+	let parsed = +value;
+
+	if (value == null || parsed != parsed)
+		parsed = fallback;
+
+	if (parsed < minimum)
+		parsed = minimum;
+	else if (parsed > maximum)
+		parsed = maximum;
+
+	return parsed;
+}
+
+function list_value(value) {
+	if (value == null)
+		return [];
+
+	return type(value) == 'array' ? value : [ value ];
+}
+
+function valid_label(label) {
+	return type(label) == 'string' &&
+		length(label) >= 1 && length(label) <= 63 &&
+		match(label, /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/) != null;
+}
+
+function valid_hostname(name) {
+	if (type(name) != 'string' || length(name) < 1 || length(name) > 253)
+		return false;
+
+	for (let label in split(name, '.'))
+		if (!valid_label(label))
+			return false;
+
+	return true;
+}
+
+function normalize_hostname(name) {
+	if (type(name) != 'string')
+		return null;
+
+	name = lc(trim(name));
+	name = trim(name, '.');
+
+	return valid_hostname(name) ? name : null;
+}
+
+function name_set(values) {
+	let result = {};
+
+	for (let value in list_value(values)) {
+		let name = normalize_hostname(sprintf('%s', value));
+		if (name)
+			result[name] = true;
+	}
+
+	return result;
+}
+
+function load_config() {
+	let ctx = uci_context();
+	let get = (option, fallback) => value_or(ctx?.get(UCI_PACKAGE, UCI_SECTION, option), fallback);
+	let domain = get('domain', null);
+
+	if (!domain)
+		domain = ctx?.get_first('dhcp', 'dnsmasq', 'domain') || 'lan';
+
+	domain = normalize_hostname(sprintf('%s', domain)) || 'lan';
+
+	let mode = lc(sprintf('%s', get('address_mode', 'prefer_ula')));
+	if (!(mode in { prefer_ula: true, prefer_gua: true, ula: true, gua: true, all: true }))
+		mode = 'prefer_ula';
+
+	return {
+		enabled: bool_value(get('enabled', '0'), false),
+		interval: int_value(get('interval', '60'), 60, 10, 3600),
+		domain,
+		address_mode: mode,
+		require_ipv4: bool_value(get('require_ipv4', '1'), true),
+		include_short: bool_value(get('include_short', '1'), true),
+		max_addresses: int_value(get('max_addresses', '0'), 0, 0, 32),
+		remove_on_stop: bool_value(get('remove_on_stop', '1'), true),
+		include: name_set(get('include', null)),
+		exclude: name_set(get('exclude', null))
+	};
+}
+
+function load_hints() {
+	if (fixture_path) {
+		let raw = fs.readfile(fixture_path);
+		if (raw == null) {
+			logmsg('error', sprintf('unable to read fixture %s', fixture_path));
+			return null;
+		}
+
+		try {
+			let parsed = json(raw);
+			return type(parsed) == 'object' ? parsed : null;
+		}
+		catch (e) {
+			logmsg('error', sprintf('invalid fixture JSON: %s', e));
+			return null;
+		}
+	}
+
+	try {
+		let bus = connect(null, 5);
+		if (!bus) {
+			logmsg('error', 'unable to connect to ubus');
+			return null;
+		}
+
+		let hints = bus.call('luci-rpc', 'getHostHints', {});
+		return type(hints) == 'object' ? hints : null;
+	}
+	catch (e) {
+		logmsg('error', sprintf('luci-rpc getHostHints failed: %s', e));
+		return null;
+	}
+}
+
+function classify_address(address) {
+	if (type(address) != 'string')
+		return null;
+
+	let normalized = lc(trim(address));
+	normalized = split(split(normalized, '/')[0], '%')[0];
+
+	if (index(normalized, ':') < 0 || normalized == '::' || normalized == '::1')
+		return null;
+
+	if (substr(normalized, 0, 2) == 'ff')
+		return null;
+
+	let first3 = substr(normalized, 0, 3);
+	if (first3 == 'fe8' || first3 == 'fe9' || first3 == 'fea' || first3 == 'feb')
+		return null;
+
+	let first2 = substr(normalized, 0, 2);
+	if (first2 == 'fc' || first2 == 'fd')
+		return { address: normalized, scope: 'ula' };
+
+	let first1 = substr(normalized, 0, 1);
+	if (first1 == '2' || first1 == '3')
+		return { address: normalized, scope: 'gua' };
+
+	return null;
+}
+
+function aliases_for(name, config) {
+	let suffix = '.' + config.domain;
+	let aliases = [];
+	let shortname = null;
+	let fqdn = name;
+
+	if (index(name, '.') < 0) {
+		shortname = name;
+		fqdn = name + suffix;
+	}
+	else if (length(name) > length(suffix) &&
+	         substr(name, length(name) - length(suffix)) == suffix) {
+		let candidate = substr(name, 0, length(name) - length(suffix));
+		if (valid_label(candidate))
+			shortname = candidate;
+	}
+
+	push(aliases, fqdn);
+	if (config.include_short && shortname && shortname != fqdn)
+		push(aliases, shortname);
+
+	return { aliases, shortname, fqdn };
+}
+
+function selected_addresses(hint, config) {
+	let ulas = [];
+	let guas = [];
+	let seen = {};
+
+	for (let raw in list_value(hint?.ip6addrs)) {
+		let classified = classify_address(raw);
+		if (!classified || seen[classified.address])
+			continue;
+
+		seen[classified.address] = true;
+		push(classified.scope == 'ula' ? ulas : guas, classified.address);
+	}
+
+	sort(ulas);
+	sort(guas);
+
+	let chosen;
+	switch (config.address_mode) {
+	case 'ula':
+		chosen = ulas;
+		break;
+	case 'gua':
+		chosen = guas;
+		break;
+	case 'prefer_gua':
+		chosen = length(guas) ? guas : ulas;
+		break;
+	case 'all':
+		chosen = [ ...ulas, ...guas ];
+		break;
+	case 'prefer_ula':
+	default:
+		chosen = length(ulas) ? ulas : guas;
+		break;
+	}
+
+	if (config.max_addresses > 0 && length(chosen) > config.max_addresses)
+		chosen = slice(chosen, 0, config.max_addresses);
+
+	return chosen;
+}
+
+function allowed_name(name_info, config) {
+	let include_keys = keys(config.include);
+	let names = [ name_info.fqdn ];
+	if (name_info.shortname)
+		push(names, name_info.shortname);
+
+	for (let name in names)
+		if (config.exclude[name])
+			return false;
+
+	if (!length(include_keys))
+		return true;
+
+	for (let name in names)
+		if (config.include[name])
+			return true;
+
+	return false;
+}
+
+function render_hosts(hints, config) {
+	let lines = [];
+	let seen = {};
+
+	for (let mac, hint in hints) {
+		if (type(hint) != 'object')
+			continue;
+
+		let name = normalize_hostname(hint.name);
+		if (!name)
+			continue;
+
+		if (config.require_ipv4 && !length(list_value(hint.ipaddrs)))
+			continue;
+
+		let name_info = aliases_for(name, config);
+		if (!allowed_name(name_info, config))
+			continue;
+
+		let aliases = join(' ', name_info.aliases);
+		for (let address in selected_addresses(hint, config)) {
+			let line = sprintf('%s\t%s', address, aliases);
+			if (!seen[line]) {
+				seen[line] = true;
+				push(lines, line);
+			}
+		}
+	}
+
+	sort(lines);
+
+	let header = sprintf('# Generated by %s; do not edit.\n# domain=%s address_mode=%s\n',
+	                     TAG, config.domain, config.address_mode);
+	return header + (length(lines) ? join('\n', lines) + '\n' : '');
+}
+
+function reload_dnsmasq() {
+	if (no_reload)
+		return true;
+
+	let rc = system('/etc/init.d/dnsmasq reload >/dev/null 2>&1');
+	if (rc != 0) {
+		logmsg('error', sprintf('dnsmasq reload failed with status %s', rc));
+		return false;
+	}
+
+	return true;
+}
+
+function install_content(content) {
+	let old = fs.readfile(output_path);
+	if (old == content)
+		return false;
+
+	let directory = fs.dirname(output_path);
+	if (!fs.access(directory) && !fs.mkdir(directory)) {
+		logmsg('error', sprintf('unable to create %s', directory));
+		return null;
+	}
+
+	let temporary_dir = fs.mkdtemp(directory + '/.slaac-dns-sync-XXXXXX');
+	if (!temporary_dir) {
+		logmsg('error', sprintf('unable to create a temporary directory under %s', directory));
+		return null;
+	}
+
+	let temporary = temporary_dir + '/hosts';
+	if (fs.writefile(temporary, content) == null) {
+		fs.rmdir(temporary_dir);
+		logmsg('error', sprintf('unable to write %s', temporary));
+		return null;
+	}
+
+	if (!fs.rename(temporary, output_path)) {
+		fs.unlink(temporary);
+		fs.rmdir(temporary_dir);
+		logmsg('error', sprintf('unable to atomically replace %s', output_path));
+		return null;
+	}
+
+	fs.rmdir(temporary_dir);
+	return true;
+}
+
+function cleanup(reload) {
+	if (reload == null)
+		reload = true;
+
+	if (!fs.access(output_path))
+		return false;
+
+	if (!fs.unlink(output_path)) {
+		logmsg('error', sprintf('unable to remove %s', output_path));
+		return null;
+	}
+
+	if (reload)
+		reload_dnsmasq();
+
+	logmsg('info', 'removed generated DNS records');
+	return true;
+}
+
+function sync_once(preview) {
+	if (preview == null)
+		preview = false;
+
+	let config = load_config();
+
+	if (!config.enabled) {
+		if (!preview)
+			cleanup(true);
+		return true;
+	}
+
+	let hints = load_hints();
+	if (hints == null) {
+		logmsg('warning', 'preserving the previous host file because no host hints were available');
+		return false;
+	}
+
+	let content = render_hosts(hints, config);
+	if (preview) {
+		print(content);
+		return true;
+	}
+
+	let changed = install_content(content);
+	if (changed == null)
+		return false;
+
+	if (changed) {
+		if (!reload_dnsmasq())
+			return false;
+
+		let records = max(0, length(split(trim(content), '\n')) - 2);
+		logmsg('info', sprintf('updated %s with %d record(s)', output_path, records));
+	}
+
+	return true;
+}
+
+let command = ARGV[0] || '--daemon';
+
+switch (command) {
+case '--once':
+	exit(sync_once(false) ? 0 : 1);
+
+case '--preview':
+	exit(sync_once(true) ? 0 : 1);
+
+case '--cleanup':
+	exit(cleanup(true) == null ? 1 : 0);
+
+case '--daemon':
+	break;
+
+default:
+	warn('Usage: slaac-dns-sync [--daemon|--once|--preview|--cleanup]\n');
+	exit(2);
+}
+
+if (!uloop.init())
+	die('Unable to initialize uloop\n');
+
+let timer;
+let schedule_next = () => {
+	let config = load_config();
+	timer.set(config.interval * 1000);
+};
+
+let run_sync = () => {
+	sync_once(false);
+	schedule_next();
+};
+
+timer = uloop.timer(0, run_sync);
+let hup = uloop.signal('SIGHUP', () => timer.set(0));
+let terminate = () => {
+	let config = load_config();
+	if (config.remove_on_stop)
+		cleanup(true);
+	uloop.end();
+};
+let sigterm = uloop.signal('SIGTERM', terminate);
+let sigint = uloop.signal('SIGINT', terminate);
+
+logmsg('info', 'service started');
+let rc = uloop.run();
+uloop.done();
+logmsg('info', sprintf('service stopped (uloop status %s)', rc));
