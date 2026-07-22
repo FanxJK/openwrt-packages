@@ -1,8 +1,0 @@
-#!/bin/sh
-
-case "$ACTION" in
-	ifup|ifupdate|ifdown)
-		/etc/init.d/slaac-dns-sync enabled 2>/dev/null || exit 0
-		/etc/init.d/slaac-dns-sync reload >/dev/null 2>&1
-		;;
-esac
