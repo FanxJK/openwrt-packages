@@ -1,0 +1,174 @@
+#!/bin/sh
+# Safely migrate supported legacy luci-app-timecontrol period rules to firewall4.
+set -eu
+
+UCI_BIN="${UCI_BIN:-uci}"
+FW4_BIN="${FW4_BIN:-fw4}"
+FIREWALL_INIT="${FIREWALL_INIT:-/etc/init.d/firewall}"
+CONFIG_DIR="${CONFIG_DIR:-/etc/config}"
+UCI_SAVEDIR="${UCI_SAVEDIR:-/tmp/.uci-timecontrol-native-migrate}"
+FIREWALL_FILE="$CONFIG_DIR/firewall"
+BACKUP_FILE="$CONFIG_DIR/firewall.before-timecontrol-native-migration"
+SRC_ZONE="${SRC_ZONE:-lan}"
+DEST_ZONE="${DEST_ZONE:-wan}"
+
+usage() {
+	cat <<'EOF'
+Usage: timecontrol-native-migrate --dry-run|--apply|--rollback
+
+  --dry-run   Validate the legacy config and print the migration plan.
+  --apply     Back up firewall, create native firewall4 rules, check, reload.
+  --rollback  Restore the pre-migration firewall backup, check, reload.
+
+Only enabled legacy period rules with every-day schedules and a MAC target
+are migrated. Legacy IP values are ignored because native rules use MAC-only
+identity so DHCP address changes cannot invalidate a schedule.
+EOF
+}
+
+mkdir -p "$UCI_SAVEDIR"
+
+uc() {
+	"$UCI_BIN" -q -c "$CONFIG_DIR" -t "$UCI_SAVEDIR" "$@"
+}
+
+legacy_value() {
+	uc get "timecontrol.@device[$1].$2" 2>/dev/null || true
+}
+
+validate_legacy() {
+	idx=0
+	enabled_count=0
+	while type="$(uc get "timecontrol.@device[$idx]" 2>/dev/null || true)" && [ -n "$type" ]; do
+		human=$((idx + 1))
+		enabled="$(legacy_value "$idx" enable)"
+		[ -n "$enabled" ] || enabled=1
+		if [ "$enabled" = "0" ]; then
+			printf 'SKIP: legacy device %d is disabled\n' "$human"
+			idx=$((idx + 1))
+			continue
+		fi
+
+		mode="$(legacy_value "$idx" time_mode)"
+		[ -n "$mode" ] || mode=period
+		if [ "$mode" != "period" ]; then
+			printf 'ERROR: Only legacy period mode can be migrated (device %d uses %s).\n' "$human" "$mode" >&2
+			return 1
+		fi
+
+		start="$(legacy_value "$idx" timestart)"
+		stop="$(legacy_value "$idx" timeend)"
+		week="$(legacy_value "$idx" week)"
+		mac="$(legacy_value "$idx" mac)"
+
+		if [ -z "$start" ] || [ -z "$stop" ] || [ "$start" = "$stop" ]; then
+			printf 'ERROR: legacy device %d has an invalid or ambiguous time range.\n' "$human" >&2
+			return 1
+		fi
+		case "$week" in
+			''|0) ;;
+			*) printf 'ERROR: legacy device %d uses unsupported week value %s; migrate it manually.\n' "$human" "$week" >&2; return 1 ;;
+		esac
+		if [ -z "$mac" ]; then
+			printf 'ERROR: MAC-only migration requires a MAC target (legacy device %d).\n' "$human" >&2
+			return 1
+		fi
+
+		printf 'PLAN: legacy device %d allowed %s-%s becomes one MAC-only blocked rule %s-%s\n' "$human" "$start" "$stop" "$stop" "$start"
+		enabled_count=$((enabled_count + 1))
+		idx=$((idx + 1))
+	done
+
+	if [ "$idx" -eq 0 ]; then
+		printf 'ERROR: no legacy device sections were found.\n' >&2
+		return 1
+	fi
+	if [ "$enabled_count" -eq 0 ]; then
+		printf 'ERROR: no enabled legacy device sections were found.\n' >&2
+		return 1
+	fi
+}
+
+refuse_existing_managed_rules() {
+	idx=0
+	while type="$(uc get "firewall.@rule[$idx]" 2>/dev/null || true)" && [ -n "$type" ]; do
+		name="$(uc get "firewall.@rule[$idx].name" 2>/dev/null || true)"
+		case "$name" in
+			'TimeControl: '*) printf 'ERROR: firewall already contains managed TimeControl rules; refusing a duplicate migration.\n' >&2; return 1 ;;
+		esac
+		idx=$((idx + 1))
+	done
+}
+
+add_native_rule() {
+	label="$1"
+	value="$2"
+	block_start="$3"
+	block_stop="$4"
+	section="$(uc add firewall rule)"
+	uc set "firewall.$section.name=TimeControl: $label"
+	uc set "firewall.$section.enabled=1"
+	uc set "firewall.$section.src=$SRC_ZONE"
+	uc set "firewall.$section.dest=$DEST_ZONE"
+	uc set "firewall.$section.proto=all"
+	uc set "firewall.$section.family=ipv4"
+	uc set "firewall.$section.target=REJECT"
+	uc set "firewall.$section.start_time=$block_start"
+	uc set "firewall.$section.stop_time=$block_stop"
+	uc set "firewall.$section.src_mac=$value"
+}
+
+apply_migration() {
+	validate_legacy
+	refuse_existing_managed_rules
+	if [ -e "$BACKUP_FILE" ]; then
+		printf 'ERROR: backup already exists at %s; rollback or move it before applying again.\n' "$BACKUP_FILE" >&2
+		return 1
+	fi
+	cp "$FIREWALL_FILE" "$BACKUP_FILE"
+
+	idx=0
+	while type="$(uc get "timecontrol.@device[$idx]" 2>/dev/null || true)" && [ -n "$type" ]; do
+		enabled="$(legacy_value "$idx" enable)"; [ -n "$enabled" ] || enabled=1
+		if [ "$enabled" != "0" ]; then
+			human=$((idx + 1))
+			start="$(legacy_value "$idx" timestart)"
+			stop="$(legacy_value "$idx" timeend)"
+			mac="$(legacy_value "$idx" mac)"
+			label="$(printf 'Legacy %d' "$human")"
+			add_native_rule "$label" "$mac" "$stop" "$start"
+		fi
+		idx=$((idx + 1))
+	done
+
+	if ! uc commit firewall || ! "$FW4_BIN" check; then
+		cp "$BACKUP_FILE" "$FIREWALL_FILE"
+		uc revert firewall 2>/dev/null || true
+		printf 'ERROR: generated firewall configuration failed validation; original firewall restored without reload.\n' >&2
+		return 1
+	fi
+	"$FIREWALL_INIT" reload
+	printf 'Migration complete. Keep %s until validation is finished.\n' "$BACKUP_FILE"
+}
+
+rollback_migration() {
+	if [ ! -f "$BACKUP_FILE" ]; then
+		printf 'ERROR: migration backup not found at %s.\n' "$BACKUP_FILE" >&2
+		return 1
+	fi
+	cp "$BACKUP_FILE" "$FIREWALL_FILE"
+	uc revert firewall 2>/dev/null || true
+	if ! "$FW4_BIN" check; then
+		printf 'ERROR: restored backup did not pass firewall4 validation; firewall was not reloaded.\n' >&2
+		return 1
+	fi
+	"$FIREWALL_INIT" reload
+	printf 'Rollback complete from %s.\n' "$BACKUP_FILE"
+}
+
+case "${1:-}" in
+	--dry-run) validate_legacy ;;
+	--apply) apply_migration ;;
+	--rollback) rollback_migration ;;
+	*) usage >&2; exit 2 ;;
+esac

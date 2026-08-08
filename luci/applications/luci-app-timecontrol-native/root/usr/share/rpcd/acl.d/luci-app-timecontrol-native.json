@@ -1,0 +1,14 @@
+{
+  "luci-app-timecontrol-native": {
+    "description": "Grant access to native firewall4 device time rules",
+    "read": {
+      "uci": [ "firewall" ],
+      "ubus": {
+        "network.interface": [ "dump" ]
+      }
+    },
+    "write": {
+      "uci": [ "firewall" ]
+    }
+  }
+}

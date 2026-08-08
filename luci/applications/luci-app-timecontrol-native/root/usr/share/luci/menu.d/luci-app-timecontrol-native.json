@@ -1,0 +1,22 @@
+{
+  "admin/control": {
+    "title": "Control",
+    "order": 45,
+    "action": {
+      "type": "firstchild"
+    }
+  },
+  "admin/control/timecontrol-native": {
+    "title": "Native Time Control",
+    "order": 10,
+    "action": {
+      "type": "view",
+      "path": "timecontrol-native/rules"
+    },
+    "depends": {
+      "acl": [ "luci-app-timecontrol-native" ],
+      "fs": { "/sbin/fw4": "executable" },
+      "uci": { "firewall": true }
+    }
+  }
+}
