@@ -1,0 +1,182 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh_Hans\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Native Time Control"
+msgstr "原生时间控制"
+
+msgid "Control"
+msgstr "管控"
+
+msgid "Native device time control"
+msgstr "原生设备时间控制"
+
+msgid "FIREWALL4 NATIVE POLICY"
+msgstr "FIREWALL4 原生策略"
+
+msgid "Device rules"
+msgstr "设备规则"
+
+msgid "Each item is a normal firewall4 traffic rule. Saving reloads firewall4 atomically."
+msgstr "每一项都是标准 firewall4 通信规则；保存时由 firewall4 原子重载。"
+
+msgid "Add device rule"
+msgstr "添加设备规则"
+
+msgid "New device rule"
+msgstr "新设备规则"
+
+msgid "Enabled"
+msgstr "启用"
+
+msgid "Device information"
+msgstr "设备信息"
+
+msgid "Unknown device"
+msgstr "未知设备"
+
+msgid "No current IP"
+msgstr "暂无当前 IP"
+
+msgid "Select a device from the selected source zone."
+msgstr "请选择属于所选源区域的设备。"
+
+msgid "Blocked period"
+msgstr "禁止时段"
+
+msgid "Source zone"
+msgstr "源区域"
+
+msgid "Destination zone"
+msgstr "目标区域"
+
+msgid "Week days"
+msgstr "生效星期"
+
+msgid "Every day"
+msgstr "每天"
+
+msgid "Weekdays"
+msgstr "工作日"
+
+msgid "Weekend"
+msgstr "周末"
+
+msgid "next day"
+msgstr "次日"
+
+msgid "Mon"
+msgstr "周一"
+
+msgid "Tue"
+msgstr "周二"
+
+msgid "Wed"
+msgstr "周三"
+
+msgid "Thu"
+msgstr "周四"
+
+msgid "Fri"
+msgstr "周五"
+
+msgid "Sat"
+msgstr "周六"
+
+msgid "Sun"
+msgstr "周日"
+
+msgid "Monday"
+msgstr "星期一"
+
+msgid "Tuesday"
+msgstr "星期二"
+
+msgid "Wednesday"
+msgstr "星期三"
+
+msgid "Thursday"
+msgstr "星期四"
+
+msgid "Friday"
+msgstr "星期五"
+
+msgid "Saturday"
+msgstr "星期六"
+
+msgid "Sunday"
+msgstr "星期日"
+
+msgid "Block from"
+msgstr "开始禁止"
+
+msgid "Block until"
+msgstr "禁止至"
+
+msgid "Overnight ranges are available only when every day is selected."
+msgstr "跨午夜时段仅在选择每天时可用。"
+
+msgid "Start and stop time must be different."
+msgstr "开始时间与结束时间不能相同。"
+
+msgid "Overnight ranges require every day. Clear weekdays or use a same-day range."
+msgstr "跨午夜时段需要选择每天。请清空星期选择或使用同日时段。"
+
+msgid "Action"
+msgstr "动作"
+
+msgid "Reject"
+msgstr "拒绝"
+
+msgid "Drop"
+msgstr "丢弃"
+
+msgid "No daemon, no minute polling and no private nftables table. Rules are stored in /etc/config/firewall and compiled by firewall4 into nftables meta hour and meta day expressions."
+msgstr "无守护进程、无每分钟轮询、无私有 nftables 表。规则直接保存在 /etc/config/firewall，并由 firewall4 编译为 nftables meta hour 与 meta day 表达式。"
+
+msgid "firewall4 native"
+msgstr "firewall4 原生"
+
+msgid "%d rules"
+msgstr "%d 条规则"
+
+msgid "%d enabled"
+msgstr "%d 条已启用"
+
+msgid "0 background processes"
+msgstr "0 个后台进程"
+
+msgid "1. Select a device"
+msgstr "1. 选择设备"
+
+msgid "Choose a device by MAC address. Its current IP is displayed for reference only."
+msgstr "按 MAC 地址选择设备；当前 IP 仅作为关联信息展示。"
+
+msgid "2. Set blocked time"
+msgstr "2. 设置禁止时段"
+
+msgid "New rules default to all day. Turn off All day to set a custom range; empty weekdays means every day."
+msgstr "新规则默认全天生效。关闭“全天”后可设置自定义时段；未选择星期表示每天。"
+
+msgid "3. Save and apply"
+msgstr "3. 保存并应用"
+
+msgid "LuCI writes normal traffic-rule options and asks firewall4 to reload atomically."
+msgstr "LuCI 写入标准通信规则，并请求 firewall4 原子重载。"
+
+msgid "Native behavior:"
+msgstr "原生行为："
+
+msgid "Rules match only the selected MAC address, so DHCP address changes do not affect the policy. Specific weekdays use same-day ranges; overnight ranges require every day. Existing conntrack or flow-offloaded sessions may continue until they reconnect; this app deliberately runs no timer or connection-killing daemon."
+msgstr "规则只匹配所选 MAC 地址，因此 DHCP 分配的 IP 发生变化也不会影响策略。指定星期使用同日时段；跨午夜时段需要选择每天。已有 conntrack 或流量卸载会话可能持续到重新连接；本应用刻意不运行定时器或连接清理守护进程。"
+
+msgid "All day"
+msgstr "全天"
+
+msgid "Only devices with a current IPv4 address in the selected source zone are shown. The IP is for reference and is not used for matching."
+msgstr "仅显示当前 IPv4 地址属于所选源区域的设备。IP 只供参考，不参与规则匹配。"
+
+msgid "When enabled, no start or stop time is written and the rule applies for the entire selected day."
+msgstr "启用后不写入开始或结束时间，规则在所选日期全天生效。"

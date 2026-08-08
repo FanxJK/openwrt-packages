@@ -1,0 +1,6 @@
+*.apk
+*.ipk
+*.tar.zst
+.DS_Store
+/dist/
+/build/
