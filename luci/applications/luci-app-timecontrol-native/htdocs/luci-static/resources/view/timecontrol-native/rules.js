@@ -3,7 +3,6 @@
 'require uci';
 'require form';
 'require rpc';
-'require ui';
 'require dom';
 'require timecontrol-native.model as tcmodel';
 
@@ -133,8 +132,9 @@ return view.extend({
 		sourceOption.default = 'lan';
 		zones.forEach(function(zone) { if (zone.name) sourceOption.value(zone.name, zone.name); });
 
-		function sourceZoneForSection(section_id) {
-			return sourceOption.formvalue(section_id) || uci.get('firewall', section_id, 'src') || 'lan';
+		function sourceZoneForSection(option, section_id) {
+			return option.section.formvalue(section_id, 'src') ||
+				uci.get('firewall', section_id, 'src') || 'lan';
 		}
 
 		function knownNamesForSection(section_id) {
@@ -151,10 +151,26 @@ return view.extend({
 			return buildDeviceChoices(zoneHosts, knownNamesForSection(section_id));
 		}
 
+		function validateSchedule(option, section_id) {
+			var allDay = option.section.formvalue(section_id, '_all_day');
+			var start = option.section.formvalue(section_id, 'start_time');
+			var stop = option.section.formvalue(section_id, 'stop_time');
+			var weekdays = option.section.formvalue(section_id, 'weekdays');
+			if (allDay === '1' || (!start && !stop))
+				return true;
+			if (!tcmodel.isValidTimeRange(start, stop))
+				return _('Start and stop time must be different.');
+			if (tcmodel.isOvernightTimeRange(start, stop) && tcmodel.hasSpecificWeekdays(weekdays))
+				return _('Overnight ranges require every day. Clear weekdays or use a same-day range.');
+			return true;
+		}
+
 		sourceOption.onchange = function(ev, section_id, value) {
 			var choices = choicesForSection(section_id, value);
 			var widgetNode = document.querySelector('.modal .cbi-value[data-name="src_mac"] .cbi-dropdown');
-			var widget = widgetNode ? dom.findClassInstance(widgetNode) : deviceOption.getUIElement(section_id);
+			var modalDeviceOption = this.section.getOption('src_mac');
+			var widget = widgetNode ? dom.findClassInstance(widgetNode) :
+				(modalDeviceOption ? modalDeviceOption.getUIElement(section_id) : null);
 			if (widget) {
 				widget.clearChoices(true);
 				widget.addChoices(choices.keys, choices.labels);
@@ -168,12 +184,12 @@ return view.extend({
 		deviceOption.width = '58%';
 		deviceOption.description = _('Only devices with a current IPv4 address in the selected source zone are shown. The IP is for reference and is not used for matching.');
 		deviceOption.renderWidget = function(section_id, option_index, cfgvalue) {
-			var choices = choicesForSection(section_id, sourceZoneForSection(section_id));
+			var choices = choicesForSection(section_id, sourceZoneForSection(this, section_id));
 			addDeviceChoices(this, choices);
 			return form.Value.prototype.renderWidget.apply(this, arguments);
 		};
 		deviceOption.validate = function(section_id, value) {
-			var sourceZone = sourceZoneForSection(section_id);
+			var sourceZone = sourceZoneForSection(this, section_id);
 			var zoneHosts = tcmodel.hostsForZone(hosts, zones, runtimeInterfaces, sourceZone);
 			var device = tcmodel.deviceForMac(zoneHosts, value);
 			var savedMac = uci.get('firewall', section_id, 'src_mac');
@@ -181,7 +197,7 @@ return view.extend({
 				_('Select a device from the selected source zone.');
 		};
 		deviceOption.write = function(section_id, value) {
-			var sourceZone = sourceZoneForSection(section_id);
+			var sourceZone = sourceZoneForSection(this, section_id);
 			var zoneHosts = tcmodel.hostsForZone(hosts, zones, runtimeInterfaces, sourceZone);
 			var device = tcmodel.deviceForMac(zoneHosts, value);
 			var savedMac = uci.get('firewall', section_id, 'src_mac');
@@ -215,22 +231,25 @@ return view.extend({
 		o.default = 'wan';
 		zones.forEach(function(zone) { if (zone.name) o.value(zone.name, zone.name); });
 
-		o = s.option(form.MultiValue, 'weekdays', _('Week days'));
-		o.modalonly = true;
-		o.multiple = true;
-		o.placeholder = _('Every day');
+		var weekdaysOption = s.option(form.MultiValue, 'weekdays', _('Week days'));
+		weekdaysOption.modalonly = true;
+		weekdaysOption.multiple = true;
+		weekdaysOption.placeholder = _('Every day');
 		[ ['Mon', _('Monday')], ['Tue', _('Tuesday')], ['Wed', _('Wednesday')],
 		  ['Thu', _('Thursday')], ['Fri', _('Friday')], ['Sat', _('Saturday')],
-		  ['Sun', _('Sunday')] ].forEach(function(day) { o.value(day[0], day[1]); });
-		o.cfgvalue = function(section_id) {
+		  ['Sun', _('Sunday')] ].forEach(function(day) { weekdaysOption.value(day[0], day[1]); });
+		weekdaysOption.cfgvalue = function(section_id) {
 			return L.toArray(uci.get('firewall', section_id, 'weekdays'));
 		};
-		o.write = function(section_id, value) {
+		weekdaysOption.write = function(section_id, value) {
 			value = L.toArray(value);
 			if (value.length)
 				uci.set('firewall', section_id, 'weekdays', value.join(' '));
 			else
 				uci.unset('firewall', section_id, 'weekdays');
+		};
+		weekdaysOption.validate = function(section_id) {
+			return validateSchedule(this, section_id);
 		};
 
 		var allDayOption = s.option(form.Flag, '_all_day', _('All day'));
@@ -256,7 +275,10 @@ return view.extend({
 		startOption.default = '22:00:00';
 		startOption.datatype = 'timehhmmss';
 		startOption.depends('_all_day', '0');
-		startOption.description = _('When start is later than stop, nftables treats the range as crossing midnight.');
+		startOption.description = _('Overnight ranges are available only when every day is selected.');
+		startOption.validate = function(section_id) {
+			return validateSchedule(this, section_id);
+		};
 
 		var stopOption = s.option(form.Value, 'stop_time', _('Block until'));
 		stopOption.modalonly = true;
@@ -264,9 +286,8 @@ return view.extend({
 		stopOption.default = '07:00:00';
 		stopOption.datatype = 'timehhmmss';
 		stopOption.depends('_all_day', '0');
-		stopOption.validate = function(section_id, value) {
-			var start = this.section.formvalue(section_id, 'start_time');
-			return tcmodel.isValidTimeRange(start, value) ? true : _('Start and stop time must be different.');
+		stopOption.validate = function(section_id) {
+			return validateSchedule(this, section_id);
 		};
 
 		o = s.option(form.ListValue, 'target', _('Action'));
@@ -282,7 +303,7 @@ return view.extend({
 		o.rmempty = false;
 		o = s.option(form.HiddenValue, 'family');
 		o.modalonly = true;
-		o.default = 'ipv4';
+		o.default = 'any';
 		o.rmempty = false;
 
 		var hero = E('div', { 'class': 'tcn-hero' }, [
@@ -303,7 +324,7 @@ return view.extend({
 		]);
 		var notice = E('div', { 'class': 'tcn-notice' }, [
 			E('strong', {}, [ _('Native behavior:'), ' ' ]),
-			_('Rules match only the selected MAC address, so DHCP address changes do not affect the policy. Weekdays refer to the packet’s current local calendar day. Existing conntrack or flow-offloaded sessions may continue until they reconnect; this app deliberately runs no timer or connection-killing daemon.')
+			_('Rules match only the selected MAC address, so DHCP address changes do not affect the policy. Specific weekdays use same-day ranges; overnight ranges require every day. Existing conntrack or flow-offloaded sessions may continue until they reconnect; this app deliberately runs no timer or connection-killing daemon.')
 		]);
 
 		return m.render().then(function(mapNode) {

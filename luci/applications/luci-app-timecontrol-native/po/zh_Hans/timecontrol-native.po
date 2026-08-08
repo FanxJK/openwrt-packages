@@ -40,11 +40,8 @@ msgstr "未知设备"
 msgid "No current IP"
 msgstr "暂无当前 IP"
 
-msgid "Select a device by MAC address. Its current IP is shown for reference and is not used for matching."
-msgstr "按 MAC 地址选择设备；当前 IP 仅供参考，不参与规则匹配。"
-
-msgid "Select a device from the list."
-msgstr "请从列表中选择设备。"
+msgid "Select a device from the selected source zone."
+msgstr "请选择属于所选源区域的设备。"
 
 msgid "Blocked period"
 msgstr "禁止时段"
@@ -118,11 +115,14 @@ msgstr "开始禁止"
 msgid "Block until"
 msgstr "禁止至"
 
-msgid "When start is later than stop, nftables treats the range as crossing midnight."
-msgstr "开始时间晚于结束时间时，nftables 会原生按跨午夜范围处理。"
+msgid "Overnight ranges are available only when every day is selected."
+msgstr "跨午夜时段仅在选择每天时可用。"
 
 msgid "Start and stop time must be different."
 msgstr "开始时间与结束时间不能相同。"
+
+msgid "Overnight ranges require every day. Clear weekdays or use a same-day range."
+msgstr "跨午夜时段需要选择每天。请清空星期选择或使用同日时段。"
 
 msgid "Action"
 msgstr "动作"
@@ -157,8 +157,8 @@ msgstr "按 MAC 地址选择设备；当前 IP 仅作为关联信息展示。"
 msgid "2. Set blocked time"
 msgstr "2. 设置禁止时段"
 
-msgid "A range such as 22:00–07:00 crosses midnight natively. Empty weekdays means every day."
-msgstr "例如 22:00–07:00 会由 nftables 原生按跨午夜时段处理；未选择星期表示每天。"
+msgid "New rules default to all day. Turn off All day to set a custom range; empty weekdays means every day."
+msgstr "新规则默认全天生效。关闭“全天”后可设置自定义时段；未选择星期表示每天。"
 
 msgid "3. Save and apply"
 msgstr "3. 保存并应用"
@@ -169,8 +169,8 @@ msgstr "LuCI 写入标准通信规则，并请求 firewall4 原子重载。"
 msgid "Native behavior:"
 msgstr "原生行为："
 
-msgid "Rules match only the selected MAC address, so DHCP address changes do not affect the policy. Weekdays refer to the packet’s current local calendar day. Existing conntrack or flow-offloaded sessions may continue until they reconnect; this app deliberately runs no timer or connection-killing daemon."
-msgstr "规则只匹配所选 MAC 地址，因此 DHCP 分配的 IP 发生变化也不会影响策略。星期按数据包发生时的本地自然日判断。已有 conntrack 或流量卸载会话可能持续到重新连接；本应用刻意不运行定时器或连接清理守护进程。"
+msgid "Rules match only the selected MAC address, so DHCP address changes do not affect the policy. Specific weekdays use same-day ranges; overnight ranges require every day. Existing conntrack or flow-offloaded sessions may continue until they reconnect; this app deliberately runs no timer or connection-killing daemon."
+msgstr "规则只匹配所选 MAC 地址，因此 DHCP 分配的 IP 发生变化也不会影响策略。指定星期使用同日时段；跨午夜时段需要选择每天。已有 conntrack 或流量卸载会话可能持续到重新连接；本应用刻意不运行定时器或连接清理守护进程。"
 
 msgid "All day"
 msgstr "全天"
@@ -178,11 +178,5 @@ msgstr "全天"
 msgid "Only devices with a current IPv4 address in the selected source zone are shown. The IP is for reference and is not used for matching."
 msgstr "仅显示当前 IPv4 地址属于所选源区域的设备。IP 只供参考，不参与规则匹配。"
 
-msgid "Select a device from the selected source zone."
-msgstr "请选择属于所选源区域的设备。"
-
 msgid "When enabled, no start or stop time is written and the rule applies for the entire selected day."
 msgstr "启用后不写入开始或结束时间，规则在所选日期全天生效。"
-
-msgid "New rules default to all day. Turn off All day to set a custom range; empty weekdays means every day."
-msgstr "新规则默认全天生效。关闭“全天”后可设置自定义时段；未选择星期表示每天。"

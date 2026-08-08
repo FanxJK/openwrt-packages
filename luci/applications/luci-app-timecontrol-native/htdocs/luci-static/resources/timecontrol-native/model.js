@@ -5,7 +5,7 @@ var PREFIX = 'TimeControl: ';
 var DAY_ORDER = [ 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun' ];
 
 function normalizedDays(value) {
-	var input = String(value || '').trim().split(/\s+/).filter(Boolean);
+	var input = Array.isArray(value) ? value : String(value || '').trim().split(/\s+/).filter(Boolean);
 	return DAY_ORDER.filter(function(day) { return input.indexOf(day) !== -1; });
 }
 
@@ -57,6 +57,15 @@ return baseclass.extend({
 
 	isValidTimeRange: function(start, stop) {
 		return Boolean(start && stop && start !== stop);
+	},
+
+	isOvernightTimeRange: function(start, stop) {
+		return Boolean(start && stop && shortTime(start) > shortTime(stop));
+	},
+
+	hasSpecificWeekdays: function(value) {
+		var days = normalizedDays(value);
+		return days.length > 0 && days.length < DAY_ORDER.length;
 	},
 
 	deviceForMac: function(hosts, mac) {
