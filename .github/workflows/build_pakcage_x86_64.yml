@@ -1,6 +1,14 @@
 name: "Build Package x86_64"
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/scripts/prepare_pages.py"
+      - ".github/workflows/build_pakcage_x86_64.yml"
+      - "luci/**"
+      - "packages/**"
   workflow_dispatch:
     inputs:
       packages:
@@ -8,6 +16,11 @@ on:
         required: false
         type: string
         default: ""
+      publish:
+        description: Publish a complete signed build to GitHub Pages; packages must be empty
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -24,30 +37,103 @@ jobs:
     name: Build x86_64-25.12
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    outputs:
+      publish: ${{ steps.publish_gate.outputs.publish }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
+      - name: Decide whether to publish
+        id: publish_gate
+        shell: bash
+        env:
+          REQUESTED_PACKAGES: ${{ inputs.packages }}
+          PUBLISH_REQUESTED: ${{ inputs.publish }}
+        run: |
+          set -euo pipefail
+
+          publish=false
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            publish=true
+          elif [[ "${PUBLISH_REQUESTED:-false}" == "true" ]]; then
+            if [[ -n "${REQUESTED_PACKAGES:-}" ]]; then
+              echo "::error::A partial package build must not replace the complete Pages repository. Clear the packages input before publishing."
+              exit 1
+            fi
+            publish=true
+          fi
+
+          echo "publish=${publish}" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare APK signing key
+        id: signing_key
+        if: steps.publish_gate.outputs.publish == 'true'
+        shell: bash
+        env:
+          APK_SIGNING_KEY: ${{ secrets.APK_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${APK_SIGNING_KEY:-}" ]]; then
+            echo "::error::Repository secret APK_SIGNING_KEY is required for Pages publication."
+            exit 1
+          fi
+
+          private_key_file="${RUNNER_TEMP}/apk-signing-key.pem"
+          public_key_file="${RUNNER_TEMP}/apk-public-key.pem"
+          umask 077
+          printf '%s\n' "$APK_SIGNING_KEY" > "$private_key_file"
+          openssl ec -in "$private_key_file" -check -noout >/dev/null
+          key_details="$(openssl ec -in "$private_key_file" -noout -text 2>/dev/null)"
+          if [[ "$key_details" != *"ASN1 OID: prime256v1"* ]]; then
+            echo "::error::APK_SIGNING_KEY must be an EC prime256v1 private key."
+            rm -f "$private_key_file"
+            exit 1
+          fi
+          openssl pkey -in "$private_key_file" -pubout -out "$public_key_file"
+          rm -f "$private_key_file"
+          chmod 0644 "$public_key_file"
+
+          echo "public_key_file=${public_key_file}" >> "$GITHUB_OUTPUT"
+
       - name: Build packages
-        uses: openwrt/gh-action-sdk@main
+        uses: openwrt/gh-action-sdk@f5813d30eeef3534b58ac7e79c5d8842b6035434
         env:
           CONTAINER: immortalwrt/sdk
           ARCH: x86_64-openwrt-25.12
           FEEDNAME: packages_ci
-          PACKAGES: ${{ github.event.inputs.packages }}
+          PACKAGES: ${{ inputs.packages }}
           BUILD_LOG: 1
           INDEX: 1
+          PRIVATE_KEY: ${{ secrets.APK_SIGNING_KEY }}
           NO_REFRESH_CHECK: 1
           NO_SHFMT_CHECK: 1
+
+      - name: Verify signed repository index
+        if: steps.publish_gate.outputs.publish == 'true'
+        shell: bash
+        env:
+          PUBLIC_KEY_FILE: ${{ steps.signing_key.outputs.public_key_file }}
+        run: |
+          set -euo pipefail
+
+          feed_dir="${GITHUB_WORKSPACE}/bin/packages/x86_64/packages_ci"
+          docker run --rm \
+            --entrypoint /bin/bash \
+            -v "${feed_dir}:/repo:ro" \
+            -v "${PUBLIC_KEY_FILE}:/keys/public-key.pem:ro" \
+            sdk \
+            -ec 'staging_dir/host/bin/apk --keys-dir /keys verify /repo/packages.adb'
 
       - name: Collect artifacts
         id: artifacts
         shell: bash
         env:
-          REQUESTED_PACKAGES: ${{ github.event.inputs.packages }}
+          REQUESTED_PACKAGES: ${{ inputs.packages }}
+          PUBLIC_KEY_FILE: ${{ steps.signing_key.outputs.public_key_file }}
         run: |
           set -euo pipefail
 
@@ -57,46 +143,88 @@ jobs:
 
           if [[ ! -d "${feed_dir}" ]]; then
             echo "::error::Expected feed output directory not found: ${feed_dir}"
-            find bin -maxdepth 4 -type d | sort || true
+            find bin -maxdepth 4 -type d -print | sort || true
             exit 1
           fi
 
           expected_count="$(find "${feed_dir}" -maxdepth 1 -type f -name "*.apk" | wc -l)"
           if [[ "${expected_count}" -eq 0 ]]; then
             echo "::error::No .apk packages were produced for x86_64-25.12."
-            find "${feed_dir}" -maxdepth 1 -type f | sort || true
+            find "${feed_dir}" -maxdepth 1 -type f -print | sort || true
             exit 1
           fi
 
+          for required_file in packages.adb index.json; do
+            if [[ ! -f "${feed_dir}/${required_file}" ]]; then
+              echo "::error::Required feed file is missing: ${feed_dir}/${required_file}"
+              exit 1
+            fi
+          done
+
           mkdir -p "${artifact_dir}"
-          cp -a "${feed_dir}/." "${artifact_dir}/"
+          cp -L "${feed_dir}"/*.apk "${feed_dir}/packages.adb" "${feed_dir}/index.json" "${artifact_dir}/"
+
+          if [[ -n "${PUBLIC_KEY_FILE:-}" ]]; then
+            cp -L "$PUBLIC_KEY_FILE" "${artifact_dir}/public-key.pem"
+          fi
+
+          {
+            echo "distribution=ImmortalWrt"
+            echo "release=25.12"
+            echo "architecture=x86_64"
+            echo "sdk_tag=x86_64-openwrt-25.12"
+            echo "package_format=apk"
+            echo "packages=${requested_packages}"
+            echo "source_commit=${GITHUB_SHA}"
+            echo "workflow_run_id=${GITHUB_RUN_ID}"
+          } > "${artifact_dir}/build-info.txt"
 
           (
             cd "${artifact_dir}"
-            find . -maxdepth 1 -type f | sort > FILES.txt
+            find . -maxdepth 1 -type f ! -name FILES.txt ! -name SHA256SUMS -print | sort > FILES.txt
             find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
           )
 
-          {
-            echo "target=25.12"
-            echo "sdk_tag=x86_64-openwrt-25.12"
-            echo "expected_ext=apk"
-            echo "packages=${requested_packages}"
-          } > "${artifact_dir}/build-info.txt"
-
           echo "artifact_dir=${artifact_dir}" >> "$GITHUB_OUTPUT"
 
+      - name: Prepare Pages site
+        if: steps.publish_gate.outputs.publish == 'true'
+        shell: bash
+        env:
+          PUBLIC_KEY_FILE: ${{ steps.signing_key.outputs.public_key_file }}
+        run: |
+          set -euo pipefail
+
+          python3 .github/scripts/prepare_pages.py \
+            --feed-dir "bin/packages/x86_64/packages_ci" \
+            --output-dir "${RUNNER_TEMP}/pages-site" \
+            --public-key "$PUBLIC_KEY_FILE" \
+            --distribution "ImmortalWrt" \
+            --release "25.12" \
+            --architecture "x86_64" \
+            --pages-url "https://fanxjk.github.io/openwrt-packages" \
+            --source-repository "$GITHUB_REPOSITORY" \
+            --source-commit "$GITHUB_SHA" \
+            --run-id "$GITHUB_RUN_ID"
+
       - name: Upload packages
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: immortalwrt-x86_64-25.12
           path: ${{ steps.artifacts.outputs.artifact_dir }}
           if-no-files-found: error
           retention-days: 7
 
+      - name: Upload Pages artifact
+        if: steps.publish_gate.outputs.publish == 'true'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ${{ runner.temp }}/pages-site
+          retention-days: 7
+
       - name: Upload build logs
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: immortalwrt-x86_64-25.12-logs
           path: logs
@@ -106,7 +234,8 @@ jobs:
       - name: Write summary
         shell: bash
         env:
-          REQUESTED_PACKAGES: ${{ github.event.inputs.packages }}
+          REQUESTED_PACKAGES: ${{ inputs.packages }}
+          PUBLISH: ${{ steps.publish_gate.outputs.publish }}
         run: |
           requested_packages="${REQUESTED_PACKAGES:-ALL}"
 
@@ -115,6 +244,28 @@ jobs:
             echo ""
             echo "- Target: \`x86_64-25.12\`"
             echo "- SDK image: \`immortalwrt/sdk:x86_64-openwrt-25.12\`"
-            echo "- Expected package type: \`apk\`"
+            echo "- Package format: \`apk\`"
             echo "- Packages: \`${requested_packages}\`"
+            echo "- Publish to Pages: \`${PUBLISH}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy GitHub Pages
+    if: needs.build.outputs.publish == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
