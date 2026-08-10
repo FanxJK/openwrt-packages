@@ -202,7 +202,7 @@ jobs:
             --distribution "ImmortalWrt" \
             --release "25.12" \
             --architecture "x86_64" \
-            --pages-url "https://fanxjk.github.io/openwrt-packages" \
+            --pages-url "https://repo.rushb.pro" \
             --source-repository "$GITHUB_REPOSITORY" \
             --source-commit "$GITHUB_SHA" \
             --run-id "$GITHUB_RUN_ID"
