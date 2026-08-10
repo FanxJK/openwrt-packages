@@ -27,14 +27,16 @@ jobs:
         packages/net/uugamebooster/update.sh
 
         FAKEHTTP_RELEASE=$(gh api repos/MikeWang000000/FakeHTTP/releases/latest)
-        packages/net/fakehttp/update.sh \
-          "$(jq -er '.tag_name' <<< "$FAKEHTTP_RELEASE")" \
-          "$(jq -er '.assets[] | select(.name=="fakehttp-linux-x86_64.tar.gz") | .digest | select(test("^sha256:[0-9a-f]{64}$")) | ltrimstr("sha256:")' <<< "$FAKEHTTP_RELEASE")"
+        FAKEHTTP_VERSION=$(jq -er '.tag_name' <<< "$FAKEHTTP_RELEASE")
+        FAKEHTTP_HASH=$(jq -er '.assets[] | select(.name=="fakehttp-linux-x86_64.tar.gz") | .digest | select(test("^sha256:[0-9a-f]{64}$")) | ltrimstr("sha256:")' <<< "$FAKEHTTP_RELEASE")
+        sed -i "s/^PKG_VERSION:=.*/PKG_VERSION:=$FAKEHTTP_VERSION/" packages/net/fakehttp/Makefile
+        sed -i "/(\$(ARCH),x86_64)/{n;s/PKG_HASH:=.*/PKG_HASH:=$FAKEHTTP_HASH/;}" packages/net/fakehttp/Makefile
 
         FAKESIP_RELEASE=$(gh api repos/MikeWang000000/FakeSIP/releases/latest)
-        packages/net/fakesip/update.sh \
-          "$(jq -er '.tag_name' <<< "$FAKESIP_RELEASE")" \
-          "$(jq -er '.assets[] | select(.name=="fakesip-linux-x86_64.tar.gz") | .digest | select(test("^sha256:[0-9a-f]{64}$")) | ltrimstr("sha256:")' <<< "$FAKESIP_RELEASE")"
+        FAKESIP_VERSION=$(jq -er '.tag_name' <<< "$FAKESIP_RELEASE")
+        FAKESIP_HASH=$(jq -er '.assets[] | select(.name=="fakesip-linux-x86_64.tar.gz") | .digest | select(test("^sha256:[0-9a-f]{64}$")) | ltrimstr("sha256:")' <<< "$FAKESIP_RELEASE")
+        sed -i "s/^PKG_VERSION:=.*/PKG_VERSION:=$FAKESIP_VERSION/" packages/net/fakesip/Makefile
+        sed -i "/(\$(ARCH),x86_64)/{n;s/PKG_HASH:=.*/PKG_HASH:=$FAKESIP_HASH/;}" packages/net/fakesip/Makefile
 
     - name: Commit update
       run: |

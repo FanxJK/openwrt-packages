@@ -9,7 +9,7 @@ on:
       - ".github/workflows/build_pakcage_x86_64.yml"
       - "luci/**"
       - "packages/**"
-      - "public-key.pem"
+      - "keys/public-key.pem"
   workflow_dispatch:
     inputs:
       packages:
@@ -90,12 +90,12 @@ jobs:
           docker run --rm \
             --entrypoint /bin/bash \
             -v "${feed_dir}:/repo:ro" \
-            -v "${GITHUB_WORKSPACE}/public-key.pem:/keys/public-key.pem:ro" \
+            -v "${GITHUB_WORKSPACE}/keys/public-key.pem:/keys/public-key.pem:ro" \
             sdk \
             -ec 'staging_dir/host/bin/apk --keys-dir /keys verify /repo/packages.adb'
 
       - name: Add public key
-        run: cp public-key.pem bin/packages/x86_64/packages_ci/public-key.pem
+        run: cp keys/public-key.pem bin/packages/x86_64/packages_ci/public-key.pem
 
       - name: Prepare Pages site
         if: steps.publish_gate.outputs.publish == 'true'
