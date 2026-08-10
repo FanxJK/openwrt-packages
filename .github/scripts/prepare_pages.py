@@ -160,23 +160,8 @@ def prepare(args: argparse.Namespace) -> None:
     )
     feed_url = f"{args.pages_url.rstrip('/')}/{FEED_RELATIVE_PATH.as_posix()}"
     repository_url = f"{feed_url}/packages.adb"
-    key_url = f"{feed_url}/public-key.pem"
-    install_commands = "\n".join(
-        [
-            "mkdir -p /etc/apk/keys /etc/apk/repositories.d",
-            f"wget -O /etc/apk/keys/fanxjk-openwrt-packages.pem {key_url}",
-            f"printf '%s\\n' '{repository_url}' > /etc/apk/repositories.d/fanxjk-openwrt-packages.list",
-            "apk update",
-        ]
-    )
 
     feed_body = f"""
-  <section class="card">
-    <h2>Repository endpoint</h2>
-    <p><code>{html.escape(repository_url)}</code></p>
-    <pre>{html.escape(install_commands)}</pre>
-    <p class="muted">仅兼容 {html.escape(args.distribution)} {html.escape(args.release)} / {html.escape(args.architecture)}。不要跨固件版本或架构混用。</p>
-  </section>
   <section class="card">
     <h2>Packages ({len(package_files)})</h2>
     <ul>
@@ -189,7 +174,7 @@ def prepare(args: argparse.Namespace) -> None:
         render_page(
             title="Fanx APK Feed",
             heading=f"{args.distribution} {args.release} / {args.architecture}",
-            intro="由 GitHub Actions 使用固定签名密钥构建，仅在完整构建成功后发布。",
+            intro="Built by GitHub Actions with a persistent signing key and published only after a complete build succeeds.",
             body=feed_body,
         ),
         encoding="utf-8",
@@ -214,7 +199,7 @@ def prepare(args: argparse.Namespace) -> None:
   </section>
   <section class="card">
     <h2>Compatibility boundary</h2>
-    <p>该二进制源不适用于 OpenWrt 24.10、opkg 固件、其他 CPU 架构，或内核 ABI 不匹配的固件。</p>
+    <p>This binary feed is not compatible with OpenWrt 24.10, opkg-based firmware, other CPU architectures, or firmware with a mismatched kernel ABI.</p>
     <p><a href="https://github.com/{html.escape(args.source_repository)}">Source repository</a></p>
   </section>
 """
@@ -222,7 +207,7 @@ def prepare(args: argparse.Namespace) -> None:
         render_page(
             title="Fanx OpenWrt Packages",
             heading="Signed APK package feed",
-            intro="面向 ImmortalWrt 的版本化第三方软件源。",
+            intro="A versioned third-party package feed for ImmortalWrt.",
             body=root_body,
         ),
         encoding="utf-8",
