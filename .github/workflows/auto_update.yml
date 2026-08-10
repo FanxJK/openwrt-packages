@@ -19,71 +19,31 @@ jobs:
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.MY_SECRETS_TOKEN }}
-        # submodules: true
-        
-    - name: uugamebooster auto update
-      run: |
-        cd packages/net/uugamebooster
-        ./update.sh
 
-    - name: fakehttp auto update
+    - name: Update packages
+      env:
+        GH_TOKEN: ${{ secrets.MY_SECRETS_TOKEN }}
       run: |
-        cd packages/net/fakehttp
-        ./update.sh
-    
-    - name: fakesip auto update
-      run: |
-        cd packages/net/fakesip
-        ./update.sh
+        packages/net/uugamebooster/update.sh
+
+        FAKEHTTP_RELEASE=$(gh api repos/MikeWang000000/FakeHTTP/releases/latest)
+        packages/net/fakehttp/update.sh \
+          "$(jq -er '.tag_name' <<< "$FAKEHTTP_RELEASE")" \
+          "$(jq -er '.assets[] | select(.name=="fakehttp-linux-x86_64.tar.gz") | .digest | select(test("^sha256:[0-9a-f]{64}$")) | ltrimstr("sha256:")' <<< "$FAKEHTTP_RELEASE")"
+
+        FAKESIP_RELEASE=$(gh api repos/MikeWang000000/FakeSIP/releases/latest)
+        packages/net/fakesip/update.sh \
+          "$(jq -er '.tag_name' <<< "$FAKESIP_RELEASE")" \
+          "$(jq -er '.assets[] | select(.name=="fakesip-linux-x86_64.tar.gz") | .digest | select(test("^sha256:[0-9a-f]{64}$")) | ltrimstr("sha256:")' <<< "$FAKESIP_RELEASE")"
 
     - name: Commit update
       run: |
-        set -euo pipefail
-
         git config user.name 'github-actions[bot]'
         git config user.email 'github-actions[bot]@users.noreply.github.com'
-
-        changed() {
-          git status --porcelain -- "$1" | grep -q .
-        }
-
-        pkg_version_from_makefile() {
-          awk -F 'PKG_VERSION:=' '/^PKG_VERSION:=/{print $2}' "$1" | xargs
-        }
-
-        join_by() {
-          local sep="$1"; shift
-          [ "$#" -gt 0 ] || { printf ''; return; }
-          local out="$1"; shift || true
-          for x in "$@"; do out="${out}${sep}${x}"; done
-          printf '%s' "$out"
-        }
-
-        segments=()
-
-        if changed "packages/net/uugamebooster/Makefile"; then
-          ver="$(pkg_version_from_makefile "packages/net/uugamebooster/Makefile" || true)"
-          segments+=("uugamebooster to ${ver:-<unknown>}")
-          git add "packages/net/uugamebooster/Makefile"
-        fi
-
-        if changed "packages/net/fakehttp/Makefile"; then
-          ver="$(pkg_version_from_makefile "packages/net/fakehttp/Makefile" || true)"
-          segments+=("fakehttp to ${ver:-<unknown>}")
-          git add "packages/net/fakehttp/Makefile"
-        fi
-
-        if changed "packages/net/fakesip/Makefile"; then
-          ver="$(pkg_version_from_makefile "packages/net/fakesip/Makefile" || true)"
-          segments+=("fakesip to ${ver:-<unknown>}")
-          git add "packages/net/fakesip/Makefile"
-        fi
-
-        if [ "${#segments[@]}" -gt 0 ]; then
-          commit_msg="Update: $(join_by ' and ' "${segments[@]}")"
-          git commit -m "$commit_msg"
-          git push
-        fi
+        git add packages/net/{uugamebooster,fakehttp,fakesip}/Makefile
+        git diff --cached --quiet && exit 0
+        git commit -m 'Update packages'
+        git push
 
     - name: Delete workflow runs
       uses: Mattraks/delete-workflow-runs@main

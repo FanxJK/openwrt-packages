@@ -33,12 +33,6 @@ define Package/fakehttp/description
 	Obfuscate all your TCP connections into HTTP protocol, using Netfilter Queue (NFQUEUE).
 endef
 
-define Build/Prepare
-	$(call Build/Prepare/Default)
-	# Make sure the binary is executable
-	chmod +x $(PKG_BUILD_DIR)/fakehttp 2>/dev/null || true
-endef
-
 define Build/Compile
 endef
 
