@@ -58,8 +58,8 @@ define Package/uugamebooster/install
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/uu.conf $(1)/usr/share/uugamebooster/uu.conf
 
 	$(INSTALL_DIR) $(1)/etc/config $(1)/etc/init.d
-	$(INSTALL_CONF) ./files/uugamebooster.config $(1)/etc/config/uugamebooster
-	$(INSTALL_BIN) ./files/uugamebooster.init $(1)/etc/init.d/uugamebooster
+	$(INSTALL_CONF) $(CURDIR)/files/uugamebooster.config $(1)/etc/config/uugamebooster
+	$(INSTALL_BIN) $(CURDIR)/files/uugamebooster.init $(1)/etc/init.d/uugamebooster
 endef
 
 $(eval $(call BuildPackage,uugamebooster))
