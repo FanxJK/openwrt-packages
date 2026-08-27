@@ -40,11 +40,29 @@ jobs:
 
     - name: Commit update
       run: |
+        set -euo pipefail
+
         git config user.name 'github-actions[bot]'
         git config user.email 'github-actions[bot]@users.noreply.github.com'
         git add packages/net/{uugamebooster,fakehttp,fakesip}/Makefile
         git diff --cached --quiet && exit 0
-        git commit -m 'Update packages'
+
+        updates=()
+        for package in uugamebooster fakehttp fakesip; do
+          makefile="packages/net/$package/Makefile"
+          if ! git diff --cached --quiet -- "$makefile"; then
+            version="$(sed -n 's/^PKG_VERSION:=[[:space:]]*//p' "$makefile")"
+            [ -n "$version" ] || { echo "Missing PKG_VERSION in $makefile" >&2; exit 1; }
+            updates+=("$package to $version")
+          fi
+        done
+
+        commit_message="update ${updates[0]}"
+        for update in "${updates[@]:1}"; do
+          commit_message+=" and $update"
+        done
+
+        git commit -m "$commit_message"
         git push
 
     - name: Delete workflow runs
